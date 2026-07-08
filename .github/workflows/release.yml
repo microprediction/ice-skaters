@@ -1,10 +1,8 @@
 name: release
 
-# Publishes to PyPI via trusted publishing (OIDC, no stored token).
-# One-time setup on pypi.org: add a pending publisher for project
-# "ice-skaters" -> repo microprediction/ice-skaters, workflow
-# release.yml, environment pypi. Then `git tag v0.1.0 && git push --tags`
-# publishes.
+# Publishes to PyPI on version tags using the PYPI_USERNAME /
+# PYPI_PASSWORD repository secrets (an API token: username __token__).
+# `git tag v0.1.0 && git push --tags` publishes.
 
 on:
   push:
@@ -13,9 +11,6 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
-    environment: pypi
-    permissions:
-      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -23,3 +18,6 @@ jobs:
           python-version: "3.12"
       - run: pip install build && python -m build
       - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: ${{ secrets.PYPI_USERNAME }}
+          password: ${{ secrets.PYPI_PASSWORD }}
