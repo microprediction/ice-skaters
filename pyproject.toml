@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ice-skaters"
+version = "0.1.0"
+description = "skaters on a river: calibrated forecast features for streaming ML pipelines. Each numeric stream becomes what the forecaster expected and how surprising the value was."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "Peter Cotton", email = "peter.cotton@microprediction.com" }
+]
+requires-python = ">=3.10"
+dependencies = [
+    "skaters>=0.12.1",
+    "river>=0.21",
+]
+
+[project.urls]
+Homepage = "https://github.com/microprediction/ice-skaters"
+
+[tool.setuptools.packages.find]
+where = ["src"]
