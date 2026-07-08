@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ice-skaters — skaters on a river</title>
+  <meta name="description" content="Calibrated forecast features for streaming ML pipelines: each numeric stream becomes what the forecaster expected and how surprising the value was." />
+  <link rel="stylesheet" href="./academic.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="nav-inner">
+      <a class="brand" href="/">ice-skaters</a>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/guide.html">Guide</a>
+        <a href="/papers.html">Papers</a>
+        <a href="https://github.com/microprediction/ice-skaters">GitHub</a>
+        <a href="https://pypi.org/project/ice-skaters/">PyPI</a>
+        <a href="https://skaters.microprediction.org">skaters</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <h1>ice-skaters</h1>
+    <p class="subtitle"><a href="https://skaters.microprediction.org">skaters</a>
+      on a <a href="https://riverml.xyz">river</a>: calibrated forecast features
+      for streaming ML pipelines.</p>
+
+    <h2>The idea</h2>
+    <p>
+      Every numeric stream is replaced by two scalars from its own online
+      Laplace forecaster: the predictive mean, which is what the forecaster
+      expected this value to be, and the standardized surprise z, which is how
+      unexpected the actual value was, bounded near |z| = 7 by construction.
+      The mean carries the level. The z carries the news. A wild observation
+      can move the pair only so far, and that bounded influence is where the
+      robustness comes from.
+    </p>
+
+    <h2>Install</h2>
+    <pre><code>pip install ice-skaters</code></pre>
+
+    <h2>Quickstart</h2>
+    <pre><code>from river import datasets, linear_model, metrics, preprocessing
+from ice_skaters import LaplaceFeatures, LaplaceTarget
+
+model = LaplaceTarget(
+    regressor=preprocessing.TargetStandardScaler(
+        regressor=LaplaceFeatures()
+        | preprocessing.StandardScaler()
+        | linear_model.LinearRegression()))
+
+mae = metrics.MAE()
+for x, y in datasets.TrumpApproval():
+    pred = model.predict_one(x)
+    mae.update(y, pred if pred is not None else 0.0)
+    model.learn_one(x, y)</code></pre>
+    <p>
+      <code>LaplaceFeatures</code> is a river transformer for the input
+      streams. <code>LaplaceTarget</code> wraps any regressor to add the
+      target's own pair, which a transformer cannot do since it never sees y.
+      Both pipe, pickle and deep-copy like any river estimator. Details in the
+      <a href="/guide.html">guide</a>.
+    </p>
+
+    <h2>What you get</h2>
+    <p>
+      On TrumpApproval with river's recommended pipeline, progressive
+      validation MAE with a burn-in of 100:
+    </p>
+    <table>
+      <thead>
+        <tr><th></th><th>clean</th><th>2% corrupted readings</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>StandardScaler pipeline</td><td>0.328</td><td>0.597</td></tr>
+        <tr><td>+ Laplace front-end</td><td>0.382</td><td>0.407</td></tr>
+      </tbody>
+    </table>
+    <p>
+      The front-end pays a small toll on clean data and holds its footing when
+      the inputs misbehave. In controlled simulation the same substitution
+      beats raw features, a running z-score, a median/MAD winsorizer and a
+      Huberised loss 30 seeds out of 30 under every contamination type tested.
+      The full protocols and numbers are on the
+      <a href="/papers.html">papers page</a>, including the cases where
+      the front-end loses, because it does lose some.
+    </p>
+
+    <h2>Relation to the stack</h2>
+    <p>
+      <a href="https://skaters.microprediction.org">skaters</a> does one
+      thing: fast univariate distributional forecasting, stdlib-only, in
+      Python or the browser. <a
+      href="https://github.com/microprediction/timemachines">timemachines</a>
+      builds anomaly detection on the same calibrated surprise streams.
+      ice-skaters is the bridge from those streams to river's estimator
+      protocol, and nothing more.
+    </p>
+  </main>
+
+  <footer>
+    <a href="https://github.com/microprediction/ice-skaters">Source</a> &middot;
+    Part of the <a href="https://github.com/microprediction">microprediction</a> family
+    (see also <a href="https://skaters.microprediction.org">skaters</a>,
+    <a href="https://github.com/microprediction/timemachines">timemachines</a>,
+    <a href="https://github.com/microprediction/precise">precise</a>).
+  </footer>
+</body>
+</html>

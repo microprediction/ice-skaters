@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ice-skaters — papers</title>
+  <meta name="description" content="Preliminary results: the calibrated forecast front-end for online regression, measured on simulation, river's learners and river's datasets." />
+  <link rel="stylesheet" href="./academic.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="nav-inner">
+      <a class="brand" href="/">ice-skaters</a>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/guide.html">Guide</a>
+        <a href="/papers.html">Papers</a>
+        <a href="https://github.com/microprediction/ice-skaters">GitHub</a>
+        <a href="https://pypi.org/project/ice-skaters/">PyPI</a>
+        <a href="https://skaters.microprediction.org">skaters</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <h1>Papers</h1>
+    <p class="subtitle">Preliminary results for the regression front-end,
+      with the losing rows reported next to the winning ones.</p>
+
+    <h2>The regression front-end</h2>
+    <p>
+      <strong>Calibrated forecast features for online regression.</strong>
+      Preliminary, July 2026.
+    </p>
+    <p>
+      Replace each input stream with two scalars from its own Laplace
+      forecaster, the predictive mean and the standardized surprise, and give
+      the target its own pair while leaving the target raw. The regression
+      then learns from variables that are stationary in scale, bounded in
+      influence and calibrated. This is the regression instance of the
+      Rosenblatt front-end thesis already measured for anomaly detectors and
+      for forecasters: other people's methods get better in Laplace
+      coordinates.
+    </p>
+    <p>
+      <a href="https://github.com/microprediction/ice-skaters/blob/main/papers/regression-frontend.md">Markdown →</a>
+      &nbsp;&middot;&nbsp;
+      <a href="https://github.com/microprediction/timemachines/blob/main/benchmarks/RESULTS.md">Full results log (timemachines)</a>
+    </p>
+
+    <h2>Headline table one — coordinates, not the loss</h2>
+    <p>
+      One fixed recursive-least-squares learner, eight contamination
+      scenarios, 30 seeds, excess MSE against the clean conditional mean,
+      medians. The front-end (zin) beats raw features 30/30 seeds on every
+      contaminated scenario and beats a median/MAD winsorizer and a Huberised
+      loss besides:
+    </p>
+    <table>
+      <thead>
+        <tr><th>scenario</th><th>raw</th><th>robust</th><th>huber</th><th>zin</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>clean</td><td><strong>0.001</strong></td><td>0.108</td><td>0.001</td><td>0.057</td></tr>
+        <tr><td>spikes on x</td><td>1.08</td><td>0.91</td><td>1.38</td><td><strong>0.72</strong></td></tr>
+        <tr><td>spikes on y</td><td>3.78</td><td>4.42</td><td>3.75</td><td><strong>1.84</strong></td></tr>
+        <tr><td>heavy t(2)</td><td>0.008</td><td>2.17</td><td><strong>0.006</strong></td><td>0.95</td></tr>
+        <tr><td>distortion</td><td>1.05</td><td>0.53</td><td>1.48</td><td><strong>0.51</strong></td></tr>
+      </tbody>
+    </table>
+    <p>
+      The heavy-tail row is a boundary, not a bug: when the extremes are
+      signal rather than noise, taming them costs accuracy, and the study
+      reports that plainly.
+    </p>
+
+    <h2>Headline table two — river's own datasets</h2>
+    <p>
+      Progressive validation MAE, untouched data, tree learner. The body
+      column is the target's Laplace predictive mean alone, no regression, no
+      features, and it is the attribution control:
+    </p>
+    <table>
+      <thead>
+        <tr><th>dataset</th><th>river pipeline</th><th>fronted</th><th>body alone</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>TrumpApproval</td><td>0.334</td><td>0.381</td><td><strong>0.150</strong></td></tr>
+        <tr><td>ChickWeights</td><td><strong>23.8</strong></td><td>24.7</td><td>25.5</td></tr>
+        <tr><td>AirlinePassengers</td><td>41.9</td><td><strong>26.6</strong></td><td>29.4</td></tr>
+        <tr><td>Bikes (20k)</td><td>5.07</td><td>5.29</td><td><strong>4.94</strong></td></tr>
+      </tbody>
+    </table>
+    <p>
+      On history-dominated streams the univariate forecaster alone already
+      beats the full feature pipeline, on river's flagship documentation
+      example by 2.2x. Under 2% injected feature spikes the front-end wins
+      10/10 on three of the four datasets. ChickWeights, which interleaves 50
+      growth curves under one key, is the disclosed counterexample.
+    </p>
+
+    <h2>Status</h2>
+    <p>
+      Preliminary. The open items are listed at the end of the markdown:
+      the mu-versus-z ablation, per-entity bodies, multi-horizon surprises,
+      per-tick cost, and concept-drift classification. Reproduction is three
+      resumable harnesses in the timemachines repo with fixed seeds.
+    </p>
+  </main>
+
+  <footer>
+    <a href="https://github.com/microprediction/ice-skaters">Source</a> &middot;
+    Part of the <a href="https://github.com/microprediction">microprediction</a> family
+    (see also <a href="https://skaters.microprediction.org">skaters</a>,
+    <a href="https://github.com/microprediction/timemachines">timemachines</a>,
+    <a href="https://github.com/microprediction/precise">precise</a>).
+  </footer>
+</body>
+</html>

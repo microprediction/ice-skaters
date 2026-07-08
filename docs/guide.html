@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ice-skaters — guide</title>
+  <meta name="description" content="The two estimators in detail: semantics, timing, parameters, NaN policy, serialization." />
+  <link rel="stylesheet" href="./academic.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="nav-inner">
+      <a class="brand" href="/">ice-skaters</a>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/guide.html">Guide</a>
+        <a href="/papers.html">Papers</a>
+        <a href="https://github.com/microprediction/ice-skaters">GitHub</a>
+        <a href="https://pypi.org/project/ice-skaters/">PyPI</a>
+        <a href="https://skaters.microprediction.org">skaters</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <h1>Guide</h1>
+    <p class="subtitle">The two estimators in detail.</p>
+
+    <h2>LaplaceFeatures</h2>
+    <p>
+      A river <code>Transformer</code>. Each numeric feature key gets its own
+      Laplace forecaster. On every sample, the value <code>v</code> of key
+      <code>k</code> is replaced by two features: <code>mu_k</code>, the
+      forecaster's one-step predictive mean for this tick, and
+      <code>z_k</code>, the probability integral transform of <code>v</code>
+      under that predictive pushed through the standard normal quantile. When
+      the forecaster is calibrated, z is close to N(0,1) and reads directly as
+      how surprising the value was. The PIT is clamped so |z| never exceeds
+      about 7.03.
+    </p>
+    <pre><code>LaplaceFeatures(emit="both", prefix=("mu_", "z_"))</code></pre>
+    <ul>
+      <li><code>emit</code>: <code>"both"</code> (default), <code>"mu"</code>
+        or <code>"z"</code>, choosing which scalars to emit per stream.</li>
+      <li><code>prefix</code>: the feature-name prefixes for the mean and the
+        surprise.</li>
+    </ul>
+    <p>
+      Non-numeric values pass through untouched, so route them around any
+      downstream <code>StandardScaler</code> exactly as you would with raw
+      features. Booleans count as non-numeric. A non-finite numeric value is
+      imputed by the forecast itself: the model receives the predictive mean
+      and z = 0, meaning expected value, no news, and the forecaster state is
+      not advanced. Keys may appear and disappear mid-stream; each key's
+      forecaster starts on first sight.
+    </p>
+
+    <h3>Timing and alignment</h3>
+    <p>
+      Bodies advance exactly once per sample, inside <code>learn_one</code>.
+      <code>transform_one</code> on its own is pure, so calling
+      <code>predict_one</code> repeatedly does not change state. One river
+      subtlety is handled for you: river's <code>Pipeline.learn_one</code>
+      updates unsupervised transformers before transforming for the downstream
+      steps, which would hand the model fresher features at learn time than it
+      predicted with. <code>LaplaceFeatures</code> caches the pre-update
+      feature dict during <code>learn_one</code> and serves it to the
+      immediately following <code>transform_one</code> for the same sample, so
+      the predict path and the learn path see identical features.
+    </p>
+
+    <h2>LaplaceTarget</h2>
+    <p>
+      A regressor wrapper in the style of river's
+      <code>TargetStandardScaler</code>. Transformers never see y, so the
+      target's own history features need a wrapper. At prediction time the
+      inner regressor receives, alongside x, the forecaster's prediction of
+      the y it is about to predict as <code>mu_y</code>, and the surprise of
+      the previous y as <code>zy</code>. The same pre-update pair is used at
+      learn time, then the forecaster consumes the new y. The target itself
+      stays raw. This wrapper never transforms y, it only adds features.
+    </p>
+    <pre><code>LaplaceTarget(regressor, keys=("mu_y", "zy"))</code></pre>
+    <p>
+      The evidence suggests the target pair matters: on real datasets much of
+      the front-end's value came from <code>mu_y</code> and <code>zy</code>,
+      and on history-dominated streams the forecast of y alone already beats a
+      feature regression. If you use only one of the two estimators, use this
+      one.
+    </p>
+
+    <h2>The full recipe</h2>
+    <pre><code>from river import linear_model, preprocessing
+from ice_skaters import LaplaceFeatures, LaplaceTarget
+
+model = LaplaceTarget(
+    regressor=preprocessing.TargetStandardScaler(
+        regressor=LaplaceFeatures()
+        | preprocessing.StandardScaler()
+        | linear_model.LinearRegression()))</code></pre>
+    <p>
+      The front-end composes with river's scalers rather than replacing them:
+      the mu features live on the original scale, so the
+      <code>StandardScaler</code> still earns its keep, and
+      <code>TargetStandardScaler</code> handles the target's scale for the
+      inner learner as usual.
+    </p>
+
+    <h2>Robustness and serialization</h2>
+    <p>
+      Observations are winsorized before a forecaster consumes them, at 1e60
+      absolute plus a window twelve orders of magnitude above the current
+      predictive level. The window is magnitude-relative rather than
+      sigma-relative on purpose: after a stretch of missing-data zeros a
+      legitimate value sits billions of sigmas out and must pass. The gate is
+      exact identity on any stream doubles can represent comfortably, and z
+      saturates near 7 long before it engages, so nothing observable changes
+      except that nothing crashes. Both estimators hold only plain state, no
+      closures, so they pickle and deep-copy like any river estimator.
+    </p>
+
+    <h2>When not to use it</h2>
+    <p>
+      Three boundaries, measured rather than guessed. Distance-based learners
+      such as KNN do not benefit: neighbour averaging is already spike-robust
+      and the extra dimensions degrade the metric. Streams that interleave
+      many entities under one key handicap a single forecaster per key; give
+      each entity its own key or wait for per-entity bodies. And if your heavy
+      tails are signal rather than noise, taming them costs accuracy: with a
+      correctly specified model and genuinely heavy-tailed inputs, the extreme
+      points are the most informative ones. Numbers for all three are on the
+      <a href="/papers.html">papers page</a>.
+    </p>
+  </main>
+
+  <footer>
+    <a href="https://github.com/microprediction/ice-skaters">Source</a> &middot;
+    Part of the <a href="https://github.com/microprediction">microprediction</a> family
+    (see also <a href="https://skaters.microprediction.org">skaters</a>,
+    <a href="https://github.com/microprediction/timemachines">timemachines</a>,
+    <a href="https://github.com/microprediction/precise">precise</a>).
+  </footer>
+</body>
+</html>
