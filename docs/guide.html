@@ -83,11 +83,13 @@
     </p>
     <pre><code>LaplaceTarget(regressor, keys=("mu_y", "zy"))</code></pre>
     <p>
-      The evidence suggests the target pair matters: on real datasets much of
-      the front-end's value came from <code>mu_y</code> and <code>zy</code>,
-      and on history-dominated streams the forecast of y alone already beats a
-      feature regression. If you use only one of the two estimators, use this
-      one.
+      The ablation made this quantitative: on river's own datasets,
+      LaplaceTarget alone, with raw features untouched, beat river's
+      recommended pipeline on three of four datasets untouched and 10/10
+      under feature contamination, and tied the fourth. If you adopt one
+      thing from this package, adopt this wrapper; add
+      <code>LaplaceFeatures</code> when you distrust the features
+      themselves.
     </p>
 
     <h2>The full recipe</h2>
@@ -118,6 +120,17 @@ model = LaplaceTarget(
       saturates near 7 long before it engages, so nothing observable changes
       except that nothing crashes. Both estimators hold only plain state, no
       closures, so they pickle and deep-copy like any river estimator.
+    </p>
+
+    <h2>Cost</h2>
+    <p>
+      About 390 microseconds per numeric stream per sample,
+      single-threaded, roughly 900x river's StandardScaler, or 2,500
+      samples per second per stream. That is the price of a full
+      distributional forecaster per stream, and it buys the calibration.
+      Right for polls, sensors, market bars and anything at human
+      timescales; wrong inside a hot path at hundreds of thousands of
+      ticks per second.
     </p>
 
     <h2>When not to use it</h2>

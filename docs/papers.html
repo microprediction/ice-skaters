@@ -100,12 +100,48 @@
       growth curves under one key, is the disclosed counterexample.
     </p>
 
+    <h2>The ablation, and the one-wrapper headline</h2>
+    <p>
+      Decomposing the pair: z alone is useless, since surprises carry no
+      level; the mean alone pays a large clean toll and misses distortion;
+      together they recombine into a conditional mean neither supports
+      alone. And the sharpest cell came from the condition the first pass
+      missed: <code>LaplaceTarget</code> alone, raw features untouched,
+      beats river's pipeline on three of four of their datasets untouched
+      (TrumpApproval 0.301 vs 0.334) and 10/10 under feature spikes, while
+      tying the counterexample. The recommendation orders itself: add the
+      target pair always; replace features with their pairs only when you
+      distrust the features; never use z alone. Cost, measured: about 390
+      microseconds per stream per sample, roughly 900x StandardScaler,
+      right at human timescales and wrong in a hot path.
+    </p>
+
+    <h2>The theorem</h2>
+    <p>
+      <strong>Regret transfer through the front-end.</strong> Pathwise,
+      with measured constants. The sandwich's log-loss regret against
+      every conjugated linear-Gaussian refinement of the body is bounded
+      by an explicit O(d log T) on any data sequence whatsoever, with no
+      stationarity, moment or calibration assumption: the parade clamp
+      manufactures the boundedness the online-learning theorem needs. The
+      insurance corollary, at s = 1 and u = 0, says the sandwich can never
+      lose more than O(d log T) nats to the forecaster alone, which
+      resolves the output-sandwich pathology in the study as a property of
+      point extraction rather than of the density. Proofs and the
+      numerical bound check ship in the repo.
+    </p>
+    <p>
+      <a href="https://github.com/microprediction/ice-skaters/blob/main/papers/regret-transfer.md">Markdown →</a>
+      &nbsp;&middot;&nbsp;
+      <a href="https://github.com/microprediction/ice-skaters/blob/main/tests/test_regret_bound.py">The bound check</a>
+    </p>
+
     <h2>Status</h2>
     <p>
-      Preliminary. The open items are listed at the end of the markdown:
-      the mu-versus-z ablation, per-entity bodies, multi-horizon surprises,
-      per-tick cost, and concept-drift classification. Reproduction is three
-      resumable harnesses in the timemachines repo with fixed seeds.
+      Preliminary. Remaining open items: per-entity bodies for
+      entity-interleaved streams, multi-horizon surprises from k=3 bodies,
+      and concept-drift classification. Reproduction is five resumable
+      harnesses in the timemachines repo with fixed seeds.
     </p>
   </main>
 

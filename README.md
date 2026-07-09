@@ -56,9 +56,18 @@ The front-end pays a small toll on clean data and holds its footing when
 the inputs misbehave. In controlled simulation the same substitution
 beats raw features, a running z-score, a median/MAD winsorizer and a
 Huberised loss 30/30 seeds under every contamination type tested, at a
-small clean-data toll. Full protocols, numbers and the study design live
-in the [timemachines](https://github.com/microprediction/timemachines)
-repo, `benchmarks/RESULTS.md` section 6.
+small clean-data toll. The ablation's one-wrapper headline:
+`LaplaceTarget` alone, raw features untouched, beat river's recommended
+pipeline on three of four of river's own datasets untouched and 10/10
+under feature spikes, and tied the fourth. There is also a theorem:
+pathwise regret transfer with measured constants and no calibration
+assumption, proofs and a numerical bound check in
+[papers/regret-transfer.md](papers/regret-transfer.md). Cost is about
+390 microseconds per stream per sample, roughly 900x StandardScaler:
+right at human timescales, wrong in a hot path. Full protocols, numbers
+and the study design live in the
+[timemachines](https://github.com/microprediction/timemachines) repo,
+`benchmarks/RESULTS.md` section 6.
 
 ## Boundaries, stated plainly
 

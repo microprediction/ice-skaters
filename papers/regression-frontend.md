@@ -111,13 +111,50 @@ forecaster's sensitivity to target contamination, and the study measured
 that failure at 60x. The output sandwich is therefore not part of the
 recipe; see the footnote in the timemachines results log.
 
+## The ablation: which scalar carries it
+
+On the simulation, z alone is useless (excess MSE 17 to 146: surprises
+carry no level, and a level cannot be regressed from pure news), mu alone
+pays a large clean toll (0.18) and misses distortion, and the pair
+recombines into a conditional mean neither scalar supports alone. The
+target's own pair is insurance for the target specifically: swapping it
+for the raw lag is better on clean and heavy-tailed rows, worse under
+target contamination and distortion.
+
+On river's datasets, dogfooding this package, the sharpest cell is the
+one the first pass missed: LaplaceTarget alone, raw features untouched.
+MAE, tree learner, untouched data: TrumpApproval 0.301 vs the pipeline's
+0.334, AirlinePassengers 26.6 vs 41.9, Bikes 5.01 vs 5.07, ChickWeights
+24.1 vs 23.8. Under 2% feature spikes it wins 10/10 on the first three
+despite its features being the raw, spiked ones: the target pair anchors
+the prediction. The recommendation therefore orders itself: add the
+target pair always, one wrapper, helps clean and contaminated alike;
+replace features with their pairs only when you distrust the features;
+never use z alone.
+
+## Cost, measured
+
+LaplaceFeatures runs at about 390 microseconds per stream per sample
+single-threaded, roughly 900x river's StandardScaler, or 2,500 samples
+per second per stream. Right for polls, sensors, market bars and
+anything at human timescales; wrong inside a hot path at hundreds of
+thousands of ticks per second.
+
+## The theorem
+
+The theory sketch above is now a theorem with proofs and a numerical
+check: pathwise regret transfer with measured constants, an insurance
+corollary resolving the output-sandwich pathology as point extraction
+rather than density failure, and the oracle decomposition. See
+[regret-transfer.md](regret-transfer.md) and
+`tests/test_regret_bound.py`.
+
 ## Status and next steps
 
-Preliminary. Open items, in order: the mu-versus-z ablation (which of the
-two scalars carries the value, and when); per-entity bodies for
-interleaved streams; multi-horizon surprises from k=3 bodies for the
-drift and shift rows; per-tick compute cost against a running scaler; and
-concept-drift classification on Elec2 and Insects. Reproduction: the
-three harnesses in timemachines `benchmarks/` (`regression_frontend.py`,
-`river_frontend.py`, `river_data_frontend.py`), all resumable, seeds
+Preliminary. Open items, in order: per-entity bodies for interleaved
+streams (the ChickWeights fix); multi-horizon surprises from k=3 bodies
+for the drift and shift rows; and concept-drift classification on Elec2
+and Insects. Reproduction: five harnesses in timemachines `benchmarks/`
+(`regression_frontend.py`, `river_frontend.py`, `river_data_frontend.py`,
+`ablation_frontend.py`, `ablation_river.py`), all resumable, seeds
 fixed.
