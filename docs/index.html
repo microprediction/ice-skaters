@@ -29,16 +29,110 @@
       on a <a href="https://riverml.xyz">river</a>: calibrated forecast features
       for streaming ML pipelines.</p>
 
-    <h2>The idea</h2>
+    <h2>The idea, from zero</h2>
     <p>
-      Every numeric stream is replaced by two scalars from its own online
-      Laplace forecaster: the predictive mean, which is what the forecaster
-      expected this value to be, and the standardized surprise z, which is how
-      unexpected the actual value was, bounded near |z| = 7 by construction.
-      The mean carries the level. The z carries the news. A wild observation
-      can move the pair only so far, and that bounded influence is where the
-      robustness comes from.
+      Suppose data arrives one row at a time and a model must predict, then
+      learn, then move to the next row: sensor readings, poll numbers, prices,
+      counts. That is streaming machine learning, and
+      <a href="https://riverml.xyz">river</a> is the standard Python library
+      for it. The usual hygiene is to standardize each number on the fly,
+      subtracting a running mean and dividing by a running deviation. That
+      helps with scale and nothing else: one fat-fingered reading still
+      arrives at full force, and worse, it poisons the running mean and
+      deviation that every later reading is judged by.
     </p>
+    <p>
+      ice-skaters replaces that with a stronger contract. Every numeric
+      stream gets its own tiny online forecaster (from
+      <a href="https://skaters.microprediction.org">skaters</a>, a
+      zero-dependency forecasting library), and the model is handed the
+      forecaster's two-number summary instead of the raw value: the
+      predictive mean, which is what the forecaster expected this value to
+      be, and the standardized surprise z, which is how unexpected the actual
+      value was, on a universal scale where 2 is notable, 4 is remarkable,
+      and the value 7 cannot be exceeded by construction. The mean carries
+      the level. The z carries the news. A wild observation can move the
+      pair only so far, and that bounded influence is where the robustness
+      comes from.
+    </p>
+    <figure style="margin:2em 0; text-align:center;">
+      <svg viewBox="0 0 760 320" role="img" aria-label="Two ways to feed a stream to a model" style="max-width:100%; height:auto; font-family:inherit;">
+        <defs>
+          <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#666"/>
+          </marker>
+        </defs>
+
+        <!-- ===== top lane: the usual way ===== -->
+        <text x="20" y="30" font-size="14" fill="#888">the usual way</text>
+
+        <!-- raw stream with spike -->
+        <rect x="20" y="45" width="150" height="70" rx="8" fill="none" stroke="#bbb"/>
+        <polyline points="30,95 45,88 60,92 75,85 90,52 105,90 120,84 135,89 150,82 162,86"
+                  fill="none" stroke="#b3593a" stroke-width="2"/>
+        <text x="95" y="130" font-size="12" fill="#888" text-anchor="middle">raw stream (one bad tick)</text>
+
+        <line x1="175" y1="80" x2="235" y2="80" stroke="#666" marker-end="url(#arr)"/>
+
+        <rect x="240" y="55" width="130" height="50" rx="8" fill="#f2f2f2" stroke="#bbb"/>
+        <text x="305" y="78" font-size="13" text-anchor="middle" fill="#333">subtract mean,</text>
+        <text x="305" y="95" font-size="13" text-anchor="middle" fill="#333">divide by std</text>
+
+        <line x1="375" y1="80" x2="435" y2="80" stroke="#666" marker-end="url(#arr)"/>
+
+        <!-- still spiky -->
+        <rect x="440" y="45" width="150" height="70" rx="8" fill="none" stroke="#bbb"/>
+        <polyline points="450,95 465,90 480,93 495,88 510,54 525,92 540,87 555,91 570,85 582,88"
+                  fill="none" stroke="#b3593a" stroke-width="2"/>
+        <text x="515" y="130" font-size="12" fill="#888" text-anchor="middle">still spiky, scale drifts</text>
+
+        <line x1="595" y1="80" x2="655" y2="80" stroke="#666" marker-end="url(#arr)"/>
+        <rect x="660" y="55" width="80" height="50" rx="8" fill="#f2f2f2" stroke="#bbb"/>
+        <text x="700" y="85" font-size="13" text-anchor="middle" fill="#333">model</text>
+
+        <!-- ===== bottom lane: ice-skaters ===== -->
+        <text x="20" y="185" font-size="14" fill="#205081" font-weight="bold">ice-skaters</text>
+
+        <rect x="20" y="200" width="150" height="70" rx="8" fill="none" stroke="#bbb"/>
+        <polyline points="30,250 45,243 60,247 75,240 90,207 105,245 120,239 135,244 150,237 162,241"
+                  fill="none" stroke="#b3593a" stroke-width="2"/>
+        <text x="95" y="285" font-size="12" fill="#888" text-anchor="middle">same stream</text>
+
+        <line x1="175" y1="235" x2="235" y2="235" stroke="#666" marker-end="url(#arr)"/>
+
+        <rect x="240" y="210" width="130" height="50" rx="8" fill="#205081" stroke="#205081"/>
+        <text x="305" y="231" font-size="13" text-anchor="middle" fill="#fff">tiny forecaster,</text>
+        <text x="305" y="248" font-size="13" text-anchor="middle" fill="#fff">one per stream</text>
+
+        <line x1="375" y1="222" x2="435" y2="212" stroke="#666" marker-end="url(#arr)"/>
+        <line x1="375" y1="248" x2="435" y2="258" stroke="#666" marker-end="url(#arr)"/>
+
+        <!-- mu: smooth -->
+        <rect x="440" y="185" width="150" height="52" rx="8" fill="none" stroke="#bbb"/>
+        <polyline points="450,218 470,215 490,217 510,214 530,216 550,213 570,215 582,213"
+                  fill="none" stroke="#205081" stroke-width="2"/>
+        <text x="515" y="231" font-size="12" fill="#205081" text-anchor="middle">mu: what was expected</text>
+
+        <!-- z: bounded -->
+        <rect x="440" y="243" width="150" height="52" rx="8" fill="none" stroke="#bbb"/>
+        <line x1="448" y1="253" x2="582" y2="253" stroke="#ddd" stroke-dasharray="3,3"/>
+        <line x1="448" y1="285" x2="582" y2="285" stroke="#ddd" stroke-dasharray="3,3"/>
+        <polyline points="450,271 465,268 480,272 495,267 510,254 525,270 540,266 555,271 570,265 582,269"
+                  fill="none" stroke="#205081" stroke-width="2"/>
+        <text x="515" y="308" font-size="12" fill="#205081" text-anchor="middle">z: how surprising, capped at 7</text>
+
+        <line x1="595" y1="211" x2="655" y2="228" stroke="#666" marker-end="url(#arr)"/>
+        <line x1="595" y1="269" x2="655" y2="248" stroke="#666" marker-end="url(#arr)"/>
+        <rect x="660" y="213" width="80" height="50" rx="8" fill="#f2f2f2" stroke="#bbb"/>
+        <text x="700" y="243" font-size="13" text-anchor="middle" fill="#333">model</text>
+      </svg>
+      <figcaption style="font-size:0.9em; color:#888; margin-top:0.5em;">
+        A running scaler passes the bad tick through at full force and its own
+        mean and variance get poisoned by it. The forecaster lane hands the
+        model what it expected and how surprising the value was, and no single
+        tick can move that pair very far.
+      </figcaption>
+    </figure>
 
     <h2>Install</h2>
     <pre><code>pip install ice-skaters</code></pre>
