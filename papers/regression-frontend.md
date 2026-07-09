@@ -91,7 +91,7 @@ TrumpApproval, AirlinePassengers and Bikes for the tree learner.
 
 The demo in this repo reproduces the deployment-shaped version:
 TrumpApproval, baseline 0.328 clean and 0.597 under 2% corrupted
-readings, fronted 0.382 and 0.407.
+readings, fronted 0.369 and 0.382.
 
 ## Why it should work, in three provable statements
 

@@ -15,7 +15,7 @@ front-end costs a little, but what happens the day the data misbehaves:
 
     MAE, LinearRegression        clean    2% corrupted
     river StandardScaler         0.328    0.597
-    + Laplace front-end          0.382    0.407
+    + Laplace front-end          0.369    0.382
 
 Run:
     pip install ice-skaters

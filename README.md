@@ -85,7 +85,7 @@ validation MAE, burn-in 100, `examples/trump_approval.py`):
 | | clean | 2% corrupted readings |
 |---|---|---|
 | `StandardScaler` pipeline | 0.328 | 0.597 |
-| + Laplace front-end | 0.382 | 0.407 |
+| + Laplace front-end | 0.369 | 0.382 |
 
 The front-end pays a small toll on clean data and holds its footing when
 the inputs misbehave. In controlled simulation the same substitution

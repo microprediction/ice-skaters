@@ -75,11 +75,15 @@
 
     <p>
       The stream is a simple driven process: a hidden signal x pushes the
-      target y around. The comparison is information-fair, generously so:
-      the baseline regresses on the current x, four raw lags of x, and
-      eight raw lags of y, which is more raw history than the fronted
-      model's forecasters exploit, while the fronted model sees the same
-      two streams as four calibrated features. Both predict one step ahead, learn, and
+      target y around. The two models receive, each tick:
+      <strong>baseline</strong>, thirteen raw numbers, the current x, four
+      lags of x, and eight lags of y; <strong>fronted</strong>, exactly
+      four numbers, what its x-forecaster expected x to be and how
+      surprising the actual x was, plus the same expectation-and-surprise
+      pair for y from its y-forecaster. No raw values reach the fronted
+      regression; its two forecasters hold all the history. That is
+      generous to the baseline, which gets more raw history than the
+      forecasters exploit. Both predict one step ahead, learn, and
       move on. Press the buttons to corrupt a reading, at the benchmark
       study's six-to-ten-sigma scale, and watch. The baseline standardizes
       with a running mean and deviation, so a bad tick arrives at full

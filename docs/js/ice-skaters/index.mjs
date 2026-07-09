@@ -185,7 +185,9 @@ export class LaplaceFeatures {
     const out = {};
     const [muP, zP] = this.prefix;
     for (const [k, v] of Object.entries(x)) {
-      if (typeof v !== "number") {
+      if (typeof v !== "number" || k.startsWith(muP) || k.startsWith(zP)) {
+        // keys already carrying this transformer's own prefixes pass
+        // through: forecasting a forecast is never the intent
         out[k] = v;
         continue;
       }
@@ -213,8 +215,9 @@ export class LaplaceFeatures {
     this.pendingOut = this._features(x);
     this.lastX = JSON.stringify(x);
     const f = skater();
+    const [muP2, zP2] = this.prefix;
     for (const [k, v] of Object.entries(x)) {
-      if (!isFiniteNumber(v)) continue;
+      if (!isFiniteNumber(v) || k.startsWith(muP2) || k.startsWith(zP2)) continue;
       const entry = this.bodies.get(k) || { state: null, pending: null };
       const [dists, st] = f(winsorize(v, entry.pending), entry.state);
       this.bodies.set(k, { state: st, pending: dists[0] });
@@ -233,7 +236,7 @@ export class LaplaceFeatures {
 export class LaplaceTarget {
   // Port of ice_skaters.LaplaceTarget: augment features with the target's
   // own (mu_y, zy) pair; the target itself stays raw.
-  constructor(regressor, keys = ["mu_y", "zy"]) {
+  constructor(regressor, keys = ["mu_y", "z_y"]) {
     this.regressor = regressor;
     this.keys = keys;
     this.state = null;

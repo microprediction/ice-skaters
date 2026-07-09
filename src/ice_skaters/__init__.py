@@ -59,7 +59,7 @@ from river import base
 from skaters import laplace
 from skaters.dist import Dist
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __all__ = ["LaplaceFeatures", "LaplaceTarget"]
 
 _STD_NORMAL = Dist.gaussian(0.0, 1.0)
@@ -120,7 +120,11 @@ class LaplaceFeatures(base.Transformer):
         out = {}
         mu_p, z_p = self.prefix
         for k, v in x.items():
-            if not _is_number(v):
+            if not _is_number(v) or k.startswith(mu_p) or k.startswith(z_p):
+                # non-numerics pass through, and so do keys already carrying
+                # this transformer's own prefixes: forecasting a forecast
+                # (e.g. the mu_y/z_y pair a LaplaceTarget wrapper adds
+                # upstream) is never the intent
                 out[k] = v
                 continue
             entry = self._bodies.get(k)
@@ -144,10 +148,12 @@ class LaplaceFeatures(base.Transformer):
     def learn_one(self, x):
         self._pending_out = self._features(x)
         self._last_x = dict(x)
+        mu_p, z_p = self.prefix
         f = _skater()
         for k, v in x.items():
-            if not _is_number(v) or not math.isfinite(v):
-                continue                            # non-finite: no update
+            if not _is_number(v) or not math.isfinite(v) \
+                    or k.startswith(mu_p) or k.startswith(z_p):
+                continue                            # non-finite/passthrough
             st, pending = self._bodies.get(k) or (None, None)
             dists, st = f(_winsorize(float(v), pending), st)
             self._bodies[k] = (st, dists[0])
@@ -172,12 +178,15 @@ class LaplaceTarget(base.Regressor):
 
     At prediction time the inner regressor receives, alongside x, the
     body's forecast of the y it is about to predict (``mu_y``) and the
-    surprise of the previous y (``zy``). The same pre-update pair is used
+    surprise of the previous y (``z_y``). The key names carry
+    LaplaceFeatures' own prefixes on purpose, so a downstream
+    LaplaceFeatures passes them through instead of forecasting the
+    forecast. The same pre-update pair is used
     at learn time, then the body consumes the new y. The target itself
     stays raw: this wrapper never transforms y, it only adds features.
     """
 
-    def __init__(self, regressor, keys=("mu_y", "zy")):
+    def __init__(self, regressor, keys=("mu_y", "z_y")):
         self.regressor = regressor
         self.keys = keys
         self._state = None
