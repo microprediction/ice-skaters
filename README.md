@@ -1,4 +1,4 @@
-# ice-skaters
+# ice-skaters ([docs](https://ice-skaters.microprediction.org))
 
 [skaters](https://github.com/microprediction/skaters) on a
 [river](https://riverml.xyz): calibrated forecast features for streaming
