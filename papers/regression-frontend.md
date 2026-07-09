@@ -179,6 +179,23 @@ rather than density failure, and the oracle decomposition. See
 [regret-transfer.md](regret-transfer.md) and
 `tests/test_regret_bound.py`.
 
+## The sufficiency study, and the claim's outer boundary
+
+The broadened question, are five calibrated numbers typically enough,
+was measured on 126 non-price FRED cross-series family pairs and the
+answer is no, on that universe, with instructive structure. river's
+linear learner disqualifies itself by divergence; with the tree, the
+rollup lands within 5% of a per-pair oracle raw configuration on 31-37%
+of pairs. The upstream reason is that on half the pairs the Laplace
+forecast alone beats every regression, raw or fronted, and where a
+covariate genuinely helps its median edge is 12.5%, of which the rollup
+keeps only part; a free EWMA rollup does about as well as features
+there. The recommendation on such universes is the forecast, not any
+regression. The front-end's measured territory is what the earlier
+sections establish: contamination insurance for model-based learners,
+structured streams, and the target wrapper on smooth single-entity
+series. Full tables: `sufficiency_study.py` in timemachines.
+
 ## Status and next steps
 
 Preliminary. Open items, in order: per-entity bodies for interleaved

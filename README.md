@@ -118,6 +118,11 @@ standalone forecast remains stronger than any of these regressions.
   per-entity forecasters; a single forecaster per key is handicapped.
 - If your heavy tails are signal rather than noise, taming them costs
   accuracy. Whether the extremes are informative decides the coordinates.
+- On noise-dominated cross-series universes (126 non-price FRED sibling
+  pairs, measured), no regression is the right move: the forecast alone
+  beats every configuration on half the pairs, and where a covariate
+  helps, the rollup keeps only part of a modest edge. Use the forecast
+  there, not this package.
 
 ## JavaScript
 
