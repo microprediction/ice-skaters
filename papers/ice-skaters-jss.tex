@@ -1,0 +1,513 @@
+\documentclass[article]{jss}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{amsthm}
+\usepackage{graphicx}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{color}
+\usepackage{natbib}
+
+%% Fallbacks so the paper also builds against a minimal jss.cls (the real JSS
+%% class defines all of these). Harmless when the full class is present.
+\providecommand{\proglang}[1]{\textsf{#1}}
+\providecommand{\pkg}[1]{\textbf{#1}}
+\providecommand{\code}[1]{\texttt{#1}}
+
+\setlength{\emergencystretch}{3em}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+\newtheorem{proposition}{Proposition}
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\KL}{\mathrm{KL}}
+\newcommand{\zmax}{z_{\max}}
+
+%% JSS article information
+\author{
+  Peter Cotton\\
+  Microprediction\\
+  \email{peter.cotton@microprediction.com}\\
+  \url{https://ice-skaters.microprediction.org}
+}
+
+\title{Skaters on a River: Calibrated Forecast Features for Streaming Regression, with a Pathwise Regret-Transfer Theorem}
+
+\Plaintitle{Skaters on a River: Calibrated Forecast Features for Streaming Regression}
+\Shorttitle{\pkg{ice-skaters}: Calibrated Forecast Features}
+
+\newcommand{\iceabstract}{
+The \proglang{Python} package \pkg{ice-skaters} replaces each numeric stream
+entering a streaming machine-learning pipeline with two scalars produced by
+the stream's own online distributional forecaster: the one-step predictive
+mean, which carries the level, and the standardized surprise, the probability
+integral transform of the arriving value pushed through the standard normal
+quantile, which carries the news and is bounded near $|z| = 7$ by
+construction. The package ships two estimators compatible with the
+\pkg{river} streaming-learning protocol: a transformer for input streams and
+a regressor wrapper that adds the target's own pair while leaving the target
+raw. On \pkg{river}'s own regression datasets under \pkg{river}'s
+progressive-validation protocol, the wrapper alone beats the recommended
+\code{StandardScaler} pipeline on three of four datasets untouched and ten
+seeds out of ten under simulated feature contamination, while tying the
+fourth; in controlled simulation the full substitution beats raw features, a
+running z-score, a median/MAD winsorizer, and a Huberised loss thirty seeds
+out of thirty under every contamination type tested, at a small clean-data
+toll. We report the losing rows with the winning ones: distance-based
+learners do not benefit, entity-interleaved streams handicap a single
+forecaster per key, informative heavy tails should not be tamed, and the
+front-end costs roughly $900\times$ a running scaler per tick. The
+theoretical contribution is a pathwise regret-transfer theorem with measured
+constants and no calibration assumption: conjugated through the forecaster's
+predictive CDF, an online linear refinement of the surprises achieves
+log-loss within an explicitly computable $O(d \log T)$ of every refinement in
+its class, on any data sequence whatsoever, and in particular can never lose
+more than $O(d \log T)$ nats to the forecaster alone.
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+\iceabstract
+\end{abstract}
+
+\noindent\textbf{Keywords:} online learning, distributional forecasting,
+probability integral transform, robust regression, streaming machine
+learning, regret bounds, \proglang{Python}, \pkg{ice-skaters}.
+
+\section{Introduction} \label{sec:intro}
+
+A streaming regression consumes raw numbers it has no right to trust. The
+standard remedy in streaming libraries is a running affine standardization: a
+\code{StandardScaler} for the features and, in \pkg{river}
+\citep{montiel2021river}, a \code{TargetStandardScaler} for the target. This
+paper measures, and then partially proves, the value of a stronger
+preprocessing contract: give every numeric stream its own online
+\emph{distributional} forecaster, and hand the learner the forecaster's state
+instead of the raw value.
+
+Concretely, each stream contributes two scalars per tick. The first is the
+one-step predictive mean, what the forecaster expected this value to be. The
+second is the standardized surprise
+\begin{equation}
+  \bar z_t \;=\; \Phi^{-1}\!\big(\mathrm{clip}(\hat F_t(y_t),\,
+  \varepsilon,\, 1-\varepsilon)\big), \qquad \varepsilon = 10^{-12},
+  \label{eq:surprise}
+\end{equation}
+the probability integral transform \citep{rosenblatt1952} of the arriving
+value under the predictive CDF $\hat F_t$ issued for it, pushed through the
+standard normal quantile and clamped so $|\bar z_t| \le \zmax =
+\Phi^{-1}(1-\varepsilon) \approx 7.03$. The mean carries the level; the
+surprise carries the news. A wild observation can move the pair only so far,
+and that bounded influence is where the robustness comes from. When the
+forecaster is calibrated the surprises are approximately independent standard
+normal, so the learner receives variables that are stationary in scale and
+carry, by construction, only what the forecaster could not explain.
+
+The idea is the regression instance of a front-end thesis established
+elsewhere for anomaly detectors and for forecasters: other methods improve
+when run in the coordinates of a calibrated online forecaster
+\citep{cotton2026skaters}. The forecaster used throughout is \code{laplace}
+from the \pkg{skaters} package, a likelihood-weighted ensemble over
+conjugated transform chains, though nothing in the construction or the
+theorem depends on that choice.
+
+The paper makes three contributions. First, a package: \pkg{ice-skaters}
+ships \code{LaplaceFeatures}, a \pkg{river} transformer for input streams,
+and \code{LaplaceTarget}, a regressor wrapper that adds the target's own
+pair, both pipe-, pickle- and deep-copy-compatible with the \pkg{river}
+estimator protocol (Section~\ref{sec:package}). Second, evidence: a
+three-part benchmark study, contaminated simulation, \pkg{river}'s learners
+against \pkg{river}'s recommended pipeline, and \pkg{river}'s own datasets,
+followed by an ablation that decomposes the pair and reverses part of the
+initial recommendation (Section~\ref{sec:evidence}). Third, a theorem:
+pathwise regret transfer with measured constants and no calibration
+assumption anywhere (Section~\ref{sec:theory}), whose insurance corollary
+resolves the one catastrophic failure mode the study observed.
+
+\section[The package]{The package} \label{sec:package}
+
+Installation is \code{pip install ice-skaters}; dependencies are
+\pkg{skaters} and \pkg{river} only. The full recipe reads:
+
+\begin{verbatim}
+from river import linear_model, preprocessing
+from ice_skaters import LaplaceFeatures, LaplaceTarget
+
+model = LaplaceTarget(
+    regressor=preprocessing.TargetStandardScaler(
+        regressor=LaplaceFeatures()
+        | preprocessing.StandardScaler()
+        | linear_model.LinearRegression()))
+\end{verbatim}
+
+\code{LaplaceFeatures} maintains one forecaster per numeric feature key and
+replaces the value of key \code{k} with \code{mu\_k} and \code{z\_k} as
+above. Non-numeric values pass through untouched. Non-finite numeric values
+are imputed by the forecast itself, the predictive mean with $z = 0$
+(``expected value, no news''), and do not advance the forecaster; a running
+scaler, by contrast, propagates NaN. \code{LaplaceTarget} wraps any regressor
+in the style of \code{TargetStandardScaler} and augments the features with
+the target's own pair, which a transformer cannot supply because it never
+sees the target; the target itself is never transformed.
+
+Three implementation contracts matter in practice. \emph{Alignment}:
+\pkg{river}'s \code{Pipeline.learn\_one} updates unsupervised transformers
+before transforming for downstream steps, which would hand the model fresher
+features at learn time than it predicted with; \code{LaplaceFeatures} caches
+the pre-update feature dictionary during \code{learn\_one} and serves it to
+the immediately following \code{transform\_one}, so the predict and learn
+paths see identical features and each forecaster advances exactly once per
+sample. \emph{Serialization}: instances hold only plain state, never
+closures, so both estimators pickle and deep-copy. \emph{Robustness}:
+observations are winsorized before a forecaster consumes them, at $10^{60}$
+absolute plus a window twelve orders of magnitude above the current
+predictive level; the window is magnitude-relative rather than
+sigma-relative, because after a degenerate-variance stretch (missing-data
+zeros, say) a legitimate value sits billions of sigmas out and must pass. The
+gate is exact identity on any stream double arithmetic can represent
+comfortably.
+
+The measured cost is about $390$ microseconds per stream per sample
+single-threaded, roughly $900\times$ \pkg{river}'s \code{StandardScaler}, or
+about $2{,}500$ samples per second per stream. That is the price of a full
+distributional forecaster per stream; it is right for polls, sensors, and
+market bars, and wrong inside a hot path at hundreds of thousands of ticks
+per second.
+
+\section{Evidence} \label{sec:evidence}
+
+Protocols, harnesses and complete tables live in the companion results
+log;\footnote{\url{https://github.com/microprediction/timemachines},
+\code{benchmarks/RESULTS.md} section 6; five resumable harnesses with fixed
+seeds.} this section reports the headline cells and every boundary.
+
+\subsection{Contaminated simulation: coordinates, not the loss}
+
+One fixed recursive-least-squares learner with forgetting predicts $y$ one
+step ahead on a linear Gaussian pair ($x$ AR(0.8) driving $y$); only the
+coordinate system varies. Eight scenarios, thirty seeds; the metric is excess
+mean squared error against the clean conditional mean (the oracle is the zero
+point), medians over seeds. Table~\ref{tab:sim} compares raw coordinates, a
+running z-score (the RevIN-style affine case,
+\citealp{kim2021reversible}), a median/MAD winsorizer, a Huberised update
+\citep{huber1964}, and the two-scalar substitution (\code{zin}).
+
+\begin{table}[t]
+\centering
+\begin{tabular}{lrrrrr}
+\toprule
+scenario & raw & zscore & robust & huber & zin \\
+\midrule
+clean          & \textbf{0.001} & 0.036 & 0.108 & 0.001 & 0.057 \\
+spikes on $x$  & 1.08 & 0.98 & 0.91 & 1.38 & \textbf{0.72} \\
+spikes on $y$  & 3.78 & 5.66 & 4.42 & 3.75 & \textbf{1.84} \\
+spikes on both & 9.05 & 9.78 & 7.66 & 9.65 & \textbf{6.33} \\
+heavy $t(2)$   & 0.008 & 2.05 & 2.17 & \textbf{0.006} & 0.95 \\
+drift          & \textbf{0.003} & 0.059 & 0.232 & 0.003 & 0.059 \\
+distortion     & 1.05 & 0.71 & 0.53 & 1.48 & \textbf{0.51} \\
+shift          & \textbf{0.001} & 0.105 & 0.159 & 0.001 & 0.089 \\
+\bottomrule
+\end{tabular}
+\caption{Excess MSE against the clean conditional mean, medians over 30
+seeds. \code{zin} beats raw 30/30 seeds on every contaminated scenario and
+beats the purpose-built robust baseline on all of them.}
+\label{tab:sim}
+\end{table}
+
+Two losing rows matter as much as the wins. With genuine $t(2)$ driving noise
+and a correctly specified model, the extreme points are the most informative
+ones and every coordinate fix pays for taming the signal: whether the tails
+are noise or signal decides the coordinates. And the Huber column shows the
+loss is the wrong place to fix inputs, since clipping a residual cannot
+repair a corrupted feature.
+
+\subsection[river's learners and river's datasets]{\pkg{river}'s learners and \pkg{river}'s datasets}
+
+The pattern survives transplanting to third-party learners against a
+third-party baseline. With \pkg{river}'s \code{LinearRegression} and
+\code{HoeffdingTreeRegressor} at defaults, and \pkg{river}'s recommended
+\code{StandardScaler}~+~\code{TargetStandardScaler} pipeline as the baseline,
+the front-end composed with that same pipeline wins 30/30 seeds under
+feature spikes and 27--30/30 under target spikes for the linear learner (sign
+test $p \le 1.9\times10^{-9}$), with the tree learner close behind.
+\code{KNNRegressor} is a genuine counterexample: neighbour averaging is
+already spike-robust and the extra dimensions degrade its distance metric.
+
+On \pkg{river}'s own datasets (progressive validation, MAE, numeric features,
+data untouched), the attribution control changes the story
+(Table~\ref{tab:river}): on history-dominated streams the univariate
+forecaster of the target \emph{alone}, no regression, no features, already
+beats the full feature pipeline, on \pkg{river}'s flagship documentation
+example by $2.2\times$. The features add almost nothing the calibrated
+forecaster had not extracted. Where features carry entity identity that one
+forecaster per key cannot represent (\code{ChickWeights} interleaves fifty
+growth curves), the pipeline keeps its edge.
+
+\begin{table}[t]
+\centering
+\begin{tabular}{lrrr}
+\toprule
+dataset & \pkg{river} pipeline & + target pair (\code{lt}) & forecaster alone \\
+\midrule
+TrumpApproval     & 0.334 & \textbf{0.301} & 0.150 \\
+ChickWeights      & \textbf{23.8} & 24.1 & 25.5 \\
+AirlinePassengers & 41.9 & \textbf{26.6} & 29.4 \\
+Bikes (20k)       & 5.07 & \textbf{5.01} & 4.94 \\
+\bottomrule
+\end{tabular}
+\caption{MAE, progressive validation, \code{HoeffdingTreeRegressor}, data
+untouched. \code{lt} is \code{LaplaceTarget} alone: raw features plus the
+target's (mean, surprise) pair. The last column is the target's predictive
+mean with no regression at all, the attribution control.}
+\label{tab:river}
+\end{table}
+
+\subsection{The ablation, and the revised recommendation}
+
+Decomposing the pair on the simulation: the surprise alone is useless (excess
+MSE 17 to 146; surprises carry no level, and a level cannot be regressed from
+pure news), the mean alone pays a large clean toll and misses distortion, and
+together they recombine into a conditional mean neither scalar supports
+alone. On \pkg{river}'s datasets the sharpest cell is the one the first pass
+missed and Table~\ref{tab:river} reports: \code{LaplaceTarget} alone, raw
+features untouched, beats the pipeline on three of four datasets untouched,
+wins ten seeds of ten under $2\%$ feature spikes on those three despite its
+features being the raw, spiked ones, and ties the counterexample. The target
+pair anchors the prediction and reduces reliance on corrupted features.
+
+The recommendation therefore orders itself: add the target pair always, one
+wrapper, helps clean and contaminated alike; replace input features with
+their pairs only when the features themselves are distrusted; never use the
+surprise alone.
+
+\section{Theory: pathwise regret transfer} \label{sec:theory}
+
+The empirical study contains one catastrophic cell: learning against the
+target's own surprise and mapping point predictions back through a
+contaminated forecaster amplified target spikes by $60\times$. The theorem
+below explains both why the density version of that construction is
+nevertheless safe on any data whatsoever, and why the front-end's boundedness
+buys worst-case guarantees no raw-coordinate method has. Throughout, nothing
+is assumed about the data or about forecast quality; the reader may imagine
+an adversary choosing $y_{1:T}$.
+
+\subsection{Setup}
+
+A \emph{body} is any causal algorithm that, having seen $y_1, \dots,
+y_{t-1}$, emits a predictive distribution for $y_t$ with continuous, strictly
+increasing CDF $\hat F_t$ and strictly positive density $\hat f_t$; Gaussian
+mixtures, hence every skater, qualify. The unclamped surprise is $z_t =
+\Phi^{-1}(\hat F_t(y_t))$ and the clamped surprise $\bar z_t$ is
+Equation~\ref{eq:surprise}. Let $\phi_t \in \R^d$ be any causal features with
+$\|\phi_t\|_\infty \le \zmax$, for instance a constant together with clamped
+surprises of exogenous streams and of the target's own past, which is what
+the package emits.
+
+\begin{lemma}[Conjugation identity] \label{lem:conj}
+For any density $q$ on $\R$,
+\[
+p_q(y) \;=\; \hat f_t(y)\, \frac{q(z_t(y))}{\varphi(z_t(y))},
+\qquad z_t(y) = \Phi^{-1}(\hat F_t(y)),
+\]
+is a probability density, and $\log p_q(y_t) = \log \hat f_t(y_t) + \log
+q(z_t) - \log \varphi(z_t)$.
+\end{lemma}
+
+\begin{proof}
+Substituting $z = z_t(y)$, whose derivative is $dz/dy = \hat
+f_t(y)/\varphi(z)$, gives $\int p_q = \int q = 1$; the identity is the
+definition evaluated at $y_t$.
+\end{proof}
+
+The identity is pathwise and exact for the actual, prequentially estimated
+$\hat F_t$ \citep{dawid1984}, however miscalibrated; forecast quality never
+enters. The refinement class is Gaussian, $q_m = \mathcal N(m, s^2)$ for
+fixed $s > 0$. The \emph{sandwich} uses $m_t = \hat z_t$, the prediction of
+the forward (Vovk--Azoury--Warmuth) forecaster
+\citep{vovk2001,azoury2001,cesabianchi2006} trained on the clamped surprises:
+with $A_t = \lambda I + \sum_{s \le t} \phi_s \phi_s'$ and $b_{t-1} =
+\sum_{s < t} \bar z_s \phi_s$, it predicts $\hat z_t = \phi_t' A_t^{-1}
+b_{t-1}$. Note $A_t$ includes the current $\phi_t$; that forward-looking
+regularization is the Azoury--Warmuth device.
+
+\subsection{The theorem}
+
+\begin{theorem}[Pathwise regret transfer] \label{thm:main}
+For every sequence $y_{1:T}$, every comparator $u \in \R^d$, and with $C =
+\{t : \hat F_t(y_t) \notin [\varepsilon, 1-\varepsilon]\}$ the set of
+clamp-active ticks,
+\[
+\sum_{t=1}^T \Big[\log p_{q_{u'\phi_t}}(y_t) - \log p_{q_{\hat z_t}}(y_t)\Big]
+\;\le\; \frac{1}{2s^2}\Big[\lambda \|u\|^2 + \zmax^2 \,
+\ln \frac{\det A_T}{\lambda^d}\Big]
+\;+\; \frac{1}{s^2}\sum_{t \in C} (u'\phi_t - \hat z_t)(z_t - \bar z_t),
+\]
+and $\ln(\det A_T/\lambda^d) \le d\ln(1 + T\zmax^2/\lambda)$ under the
+feature bound. Every quantity on the right-hand side is computable from the
+run: $\lambda$, $s$ and $\zmax$ are chosen, $\det A_T$ and the
+clamp-correction sum are observed, and $C$ consists of ticks the body
+assigned probability below $10^{-12}$.
+\end{theorem}
+
+\begin{proof}
+By Lemma~\ref{lem:conj}, for any two refinement means $a, b$ the log-score
+difference at tick $t$ is $[(z_t - b)^2 - (z_t - a)^2]/2s^2$, so the
+left-hand side equals $\tfrac{1}{2s^2}\sum_t [(z_t - \hat z_t)^2 - (z_t -
+u'\phi_t)^2]$. Since $g(z) = (z - \hat z_t)^2 - (z - u'\phi_t)^2$ is affine
+in $z$ with slope $2(u'\phi_t - \hat z_t)$,
+\[
+(z_t - \hat z_t)^2 - (z_t - u'\phi_t)^2 = (\bar z_t - \hat z_t)^2 - (\bar z_t
+- u'\phi_t)^2 + 2(u'\phi_t - \hat z_t)(z_t - \bar z_t),
+\]
+and the correction vanishes off $C$ where $z_t = \bar z_t$. The clamped sum
+is the squared-loss regret of the forward forecaster on targets bounded by
+$\zmax$, which Appendix~\ref{app:vaw} bounds by $\lambda\|u\|^2 + \zmax^2
+\ln(\det A_T/\lambda^d)$. The determinant bound is
+$\det A_T \le (\mathrm{tr}\, A_T/d)^d$ with $\mathrm{tr}\,A_T \le \lambda d +
+T d \zmax^2$.
+\end{proof}
+
+\begin{corollary}[Insurance] \label{cor:insurance}
+Take $s = 1$ and $u = 0$. Then $q_0 = \varphi$ and $p_{q_0} = \hat f_t$ is
+the body itself, so for every data sequence
+\[
+\sum_t \log \hat f_t(y_t) - \sum_t \log p_{q_{\hat z_t}}(y_t)
+\;\le\; \frac{\zmax^2}{2}\, d \ln\!\Big(1 + \frac{T \zmax^2}{\lambda}\Big)
++ \sum_{t\in C} 2\,|\hat z_t|\,|z_t - \bar z_t|.
+\]
+The sandwich can never lose more than $O(d \log T)$ nats to the body,
+pathwise, while gaining without limit whatever linear structure exists in the
+surprises.
+\end{corollary}
+
+\begin{remark}
+The corollary resolves the study's catastrophic cell. The output sandwich
+looked disastrous there, but that failure was a property of extracting a
+point forecast, the mean of the pushforward, whose tails a contaminated body
+inflates. As a density, scored where densities are scored, the sandwich is
+safe on any data by Corollary~\ref{cor:insurance}. Fix the inputs for point
+prediction; trust the sandwich only in log-loss.
+\end{remark}
+
+\subsection{The oracle decomposition}
+
+Only now suppose a truth: $(x_t, y_t)$ adapted to a filtration $\mathcal
+G_t$, with $P_t$ the conditional law of $y_t$ given $\mathcal G_{t-1}$, and
+let the body be causal in $y$ alone with $\mathcal F_{t-1} =
+\sigma(y_{1:t-1})$. Let $Z_t^*$ and $\bar Z_t$ denote the conditional laws of
+$z_t$ given $\mathcal G_{t-1}$ and $\mathcal F_{t-1}$ respectively.
+
+\begin{proposition}[Transfer entropy plus measured miscalibration]
+\label{prop:decomp}
+\[
+\E \sum_t \KL(P_t \,\|\, \hat F_t) \;=\; \sum_t I\big(y_t;\, \mathcal G_{t-1}
+\mid \mathcal F_{t-1}\big) \;+\; \E \sum_t \KL\big(\bar Z_t \,\|\, \mathcal
+N(0,1)\big).
+\]
+\end{proposition}
+
+\begin{proof}
+KL divergence is invariant under an invertible transformation applied to both
+arguments; applying $y \mapsto \Phi^{-1}(\hat F_t(y))$, which is $\mathcal
+F_{t-1}$-measurable and strictly increasing, maps $P_t$ to $Z_t^*$ and $\hat
+F_t$ to $\mathcal N(0,1)$, so $\KL(P_t \| \hat F_t) = \KL(Z_t^* \| \mathcal
+N(0,1))$. The chain rule of relative entropy against a fixed reference
+splits, in expectation over $\mathcal G_{t-1}$, $\E\,\KL(Z_t^* \| \mathcal
+N(0,1)) = \E\,\KL(Z_t^* \| \bar Z_t) + \E\,\KL(\bar Z_t \| \mathcal N(0,1))$,
+and the first term is the conditional mutual information after the same
+invariance is applied once more.
+\end{proof}
+
+The body's expected excess over the full-information oracle splits exactly
+into the transfer entropy of the exogenous information and the body's own
+prequential miscalibration, measured as the divergence of the actual
+conditional surprise law from standard normal. The refinement learner of
+Theorem~\ref{thm:main} competes for the first term only; the second is the
+body's business, and it is a measured quantity, never an assumption.
+
+\subsection{What is not claimed, and the numerical check}
+
+No claim that the surprises are independent, standard normal, or stationary.
+No claim about point predictions on the original scale;
+Section~\ref{sec:evidence} measured where those go wrong. The comparator
+class is the conjugated linear-Gaussian family, not all forecasters; its
+force is that it contains the body itself and every linear refinement of its
+surprises, with constants a run can print. A test in the package repository
+runs the exact construction, Laplace bodies, clamped surprises, forward
+learner, on clean and spiked streams and asserts the theorem's inequality for
+a grid of comparators; the bound becomes informative (smaller than the
+trivial total loss) near $T \approx 2{,}500$ for $d = 3$.
+
+\section{Related work} \label{sec:related}
+
+Reversible instance normalization and its relatives
+\citep{kim2021reversible,passalis2019dain} remove per-instance mean and
+variance around a deep forecaster and add them back: the affine,
+window-based special case of the present construction, welded to a specific
+model class. The nonparanormal \citep{liu2009nonparanormal} estimates
+monotone marginal transforms so that a Gaussian model fits in transformed
+space; the front-end is its dynamic analogue, with conditional, time-varying
+margins supplied by a forecaster rather than unconditional ranks. Robust
+streaming regression modifies the loss \citep{huber1964}; Table~\ref{tab:sim}
+argues the coordinates are the better lever, since a clipped residual cannot
+repair a corrupted feature. The regret machinery is the forward algorithm of
+\citet{vovk2001} and \citet{azoury2001} as presented by
+\citet{cesabianchi2006}; the contribution here is the transfer through the
+conjugation and the observation that the parade clamp manufactures the
+boundedness those results assume, turning an assumption into a property.
+
+\section{Limitations and next steps} \label{sec:limits}
+
+The boundaries are stated in Section~\ref{sec:evidence}: distance-based
+learners, entity-interleaved streams, informative heavy tails, and the
+$900\times$ per-tick cost. Open items, in order: per-entity bodies with
+partial pooling in surprise space (the \code{ChickWeights} fix);
+multi-horizon surprises from $k > 1$ parades for drift and shift; and
+concept-drift classification. The package and all harnesses are open source;
+every table in this paper regenerates from fixed seeds.
+
+\appendix
+
+\section{The forward-algorithm bound} \label{app:vaw}
+
+\begin{proposition}[\citealp{vovk2001,azoury2001}; \citealp{cesabianchi2006},
+Theorem 11.8]
+For targets $|\bar z_t| \le Y$ and predictions $\hat z_t = \phi_t' A_t^{-1}
+b_{t-1}$ as above,
+\[
+\sum_t (\hat z_t - \bar z_t)^2 - \sum_t (u'\phi_t - \bar z_t)^2 \;\le\;
+\lambda\|u\|^2 + Y^2 \ln \frac{\det A_T}{\lambda^d} \qquad \text{for all } u.
+\]
+\end{proposition}
+
+\begin{proof}[Proof sketch]
+Let $w_t = A_t^{-1} b_t$ and define the potential $\Phi_t = \min_w
+[\lambda\|w\|^2 + \sum_{s\le t}(w'\phi_s - \bar z_s)^2]$, attained at $w_t$.
+Per-tick algebra expresses $(\hat z_t - \bar z_t)^2$ as $(\Phi_t -
+\Phi_{t-1})$ plus an extra term that telescopes against $\bar z_t^2\,
+\phi_t'A_t^{-1}\phi_t$; summing,
+\[
+\sum_t (\hat z_t - \bar z_t)^2 \;\le\; \Phi_T + \sum_t \bar z_t^2\, \phi_t'
+A_t^{-1} \phi_t \;\le\; \lambda\|u\|^2 + \sum_t (u'\phi_t - \bar z_t)^2 + Y^2
+\sum_t \phi_t' A_t^{-1} \phi_t.
+\]
+Finally $\phi_t' A_t^{-1} \phi_t = 1 - \det A_{t-1}/\det A_t \le \ln(\det
+A_t/\det A_{t-1})$, using $1 - 1/r \le \ln r$, and the sum telescopes to
+$\ln(\det A_T/\lambda^d)$.
+\end{proof}
+
+\bibliographystyle{plainnat}
+\bibliography{ice-skaters}
+
+\end{document}
