@@ -107,7 +107,11 @@ model = LaplaceTarget(
       the mu features live on the original scale, so the
       <code>StandardScaler</code> still earns its keep, and
       <code>TargetStandardScaler</code> handles the target's scale for the
-      inner learner as usual.
+      inner learner as usual. One enrichment is measured and free of
+      trade-offs: include a lag of the target in the feature dict (it
+      reaches the learner as a calibrated pair, never raw), which cut the
+      clean-data toll roughly in half in the audit while improving every
+      contaminated case.
     </p>
 
     <h2>Robustness and serialization</h2>
