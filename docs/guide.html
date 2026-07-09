@@ -141,6 +141,34 @@ model = LaplaceTarget(
       ticks per second.
     </p>
 
+    <h2>Choosing coordinates: the measured decision rule</h2>
+    <p>
+      Per channel, from the benchmark studies:
+    </p>
+    <ul>
+      <li><strong>Untrusted x</strong> (fat fingers, sensor glitches,
+        gaps): substitute the pair for the raw value. That is the
+        insurance, and it only works by substitution; adding the pair
+        beside the raw value protects nothing.</li>
+      <li><strong>Trusted, linear x</strong> (its information is its
+        level and lags): send it raw. The pair is a lossy encoding of a
+        level, measured about 30% behind on such universes, and the
+        forecast adds nothing beside raw lags there.</li>
+      <li><strong>Structured x</strong> (seasonality, volatility clock,
+        shape beyond lags): the pair wins even clean.</li>
+      <li><strong>Heavy-tailed but truthful x</strong>: raw. The
+        extremes are the most informative points and the clamp taxes
+        exactly them. "Noisy" must mean untrusted, not volatile.</li>
+      <li><strong>The target</strong>: the wrapper's pair is a separate
+        decision and earned its keep on smooth single-entity series;
+        <code>mus=2</code> is free.</li>
+      <li><strong>Don't know?</strong> Then it is an insurance decision
+        with measured premiums: zero to eleven percent clean depending
+        on structure, unbounded raw downside, 10/10 payout under
+        contamination. For one audited stream, go raw; for a thousand
+        streams nobody will inspect, insure.</li>
+    </ul>
+
     <h2>When not to use it</h2>
     <p>
       Three boundaries, measured rather than guessed. Distance-based learners
