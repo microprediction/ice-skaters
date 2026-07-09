@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ice-skaters"
-version = "0.1.1"
+version = "0.1.2"
 description = "skaters on a river: calibrated forecast features for streaming ML pipelines. Each numeric stream becomes what the forecaster expected and how surprising the value was."
 readme = "README.md"
 license = { text = "MIT" }

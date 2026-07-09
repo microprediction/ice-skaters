@@ -111,3 +111,22 @@ def test_target_wrapper_learns_and_predicts_finite():
         preds.append(p if p is not None else 0.0)
         model.learn_one(x, 0.5 * x["a"] + rng.gauss(0, 0.1))
     assert all(math.isfinite(p) for p in preds)
+
+
+def test_mus_enrichment_exposes_previous_forecast():
+    model = LaplaceTarget(
+        regressor=preprocessing.TargetStandardScaler(
+            regressor=LaplaceFeatures()
+            | preprocessing.StandardScaler()
+            | linear_model.LinearRegression()),
+        mus=2)
+    rng = random.Random(5)
+    for t in range(60):
+        x = {"a": rng.gauss(0, 1)}
+        p = model.predict_one(x)
+        assert p is None or math.isfinite(p)
+        model.learn_one(x, 0.5 * x["a"] + rng.gauss(0, 0.1))
+    aug = model._augment({"a": 0.1})
+    assert "mu_y_prev1" in aug and math.isfinite(aug["mu_y_prev1"])
+    with pytest.raises(ValueError):
+        LaplaceTarget(regressor=None, mus=0)

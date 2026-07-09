@@ -108,10 +108,13 @@ model = LaplaceTarget(
       <code>StandardScaler</code> still earns its keep, and
       <code>TargetStandardScaler</code> handles the target's scale for the
       inner learner as usual. One enrichment is measured and free of
-      trade-offs: include a lag of the target in the feature dict (it
-      reaches the learner as a calibrated pair, never raw), which cut the
-      clean-data toll roughly in half in the audit while improving every
-      contaminated case.
+      trade-offs: <code>LaplaceTarget(..., mus=2)</code> also exposes the
+      previous tick's forecast, which cut the clean-data toll roughly in
+      half in the audit while improving every contaminated case, at no
+      extra compute. Do not add a lagged copy of the target as an extra
+      feature stream instead: that duplicates the surprise column exactly,
+      doubling the gradient on the one feature not to over-react to, and
+      it measured strictly worse.
     </p>
 
     <h2>Robustness and serialization</h2>
