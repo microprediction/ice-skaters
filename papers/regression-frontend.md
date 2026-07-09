@@ -148,6 +148,20 @@ clean and wins 9-10/10 contaminated. Raw lags and forecaster features
 are two ways to buy the same history; lags are the fragile way. Full
 tables: `ablation_lag.py` in the timemachines benchmarks.
 
+## The cheap-rollup control
+
+An EWMA version of the same pair, two lines and free, is the last
+control: it captures the tail insurance (the clipping does that work),
+beats the Laplace pairs as features on the near-random-walk
+TrumpApproval, ties ChickWeights and Bikes, and loses on Airline and by
+14-26% across the synthetic bulk where the stream has structure an EWMA
+cannot track. On smooth series the strongest object of all remains the
+Laplace forecast alone, which every regression wrapper degrades with
+learner slack. The pitch that survives all controls: the rollup shape is
+free insurance anyone should take; the calibrated forecaster is the
+accuracy upgrade; and where the forecast is nearly the whole answer, use
+the forecast.
+
 ## Cost, measured
 
 LaplaceFeatures runs at about 390 microseconds per stream per sample

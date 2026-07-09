@@ -134,7 +134,12 @@
       smooth single-entity series, fragile everywhere else, and the
       wrapper on top of lags improved the strongest configuration found
       on three of four datasets. Raw lags and forecaster features buy the
-      same history; lags are the fragile way.
+      same history; lags are the fragile way. And a free EWMA version of
+      the pair, the cheap-rollup control, captures much of the insurance
+      and even wins the smoothest dataset as features, while losing by
+      14-26% wherever the stream has structure it cannot track: the
+      rollup shape is free insurance, the calibrated forecaster is the
+      accuracy upgrade.
     </p>
 
     <h2>The theorem</h2>

@@ -289,7 +289,12 @@ pair anchors the prediction and reduces reliance on corrupted features.
 The recommendation therefore orders itself: add the target pair always, one
 wrapper, helps clean and contaminated alike; replace input features with
 their pairs only when the features themselves are distrusted; never use the
-surprise alone. A fairness audit added the referee's baseline, the same
+surprise alone. A cheap-rollup control, an EWMA version of the same pair,
+captures the tail insurance for free and even wins the smoothest dataset as
+features, while losing by 14--26\% wherever the stream has structure an EWMA
+cannot track: the rollup shape is free insurance, the calibrated forecaster
+is the accuracy upgrade, and on near-random-walk series the strongest object
+remains the forecast alone. A fairness audit added the referee's baseline, the same
 pipeline plus raw target lags $1..8$: on the smooth single-entity series raw
 lags are strong and spike-resistant and the wrapper alone loses to them, but
 the wrapper on top of lags is best of all, clean and spiked, and everywhere

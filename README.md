@@ -102,7 +102,13 @@ Protocols, harnesses and the losing rows live in the
 Cost, measured: about 390 microseconds per stream per sample, roughly
 900x `StandardScaler`. Right for polls, sensors, market bars and anything
 at human timescales; wrong inside a hot path at hundreds of thousands of
-ticks per second.
+ticks per second. And the cheap-rollup control keeps the pitch honest:
+a free EWMA version of the same (mean, surprise) pair captures much of
+the robustness, ties or beats the Laplace pairs as features on the
+smoothest real datasets, and loses by 14-26% wherever the stream has
+structure an EWMA cannot track. If cost matters, start there; the
+calibrated forecaster is the upgrade path, and on smooth series its
+standalone forecast remains stronger than any of these regressions.
 
 ## Boundaries, stated plainly
 
