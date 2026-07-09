@@ -66,10 +66,16 @@ imputed by the forecast itself with z = 0: the model receives "expected
 value, no news" instead of a poisoned pipeline.
 
 **If you adopt one thing, adopt the wrapper.** In the ablation,
-`LaplaceTarget` alone, with raw features untouched, beat river's
-recommended pipeline on three of four of river's own datasets untouched,
-won 10/10 under simulated feature contamination, and tied the fourth.
-Add `LaplaceFeatures` when you distrust the features themselves.
+`LaplaceTarget` alone beat river's recommended (lag-free) pipeline on
+three of four of river's own datasets untouched and 10/10 under
+simulated feature contamination. The fairness audit then asked the
+referee's question, what about a baseline with raw target lags, and the
+answer sharpened rather than broke the claim: hand-added lags are strong
+on smooth single-entity series, fragile everywhere else, and the wrapper
+on top of whatever features you have, lags included, improved the
+strongest configuration found on three of four datasets and sat within
+noise on the fourth. Add `LaplaceFeatures` when you distrust the
+features themselves.
 
 ## What the evidence says
 

@@ -132,6 +132,22 @@ target pair always, one wrapper, helps clean and contaminated alike;
 replace features with their pairs only when you distrust the features;
 never use z alone.
 
+## The fairness audit
+
+The std baseline follows river's idiom and carries no target history, so
+the audit added the referee's baseline: the same pipeline plus raw y
+lags 1 to 8, alone and under the wrapper. On the smooth single-entity
+series raw lags are strong and spike-resistant and the wrapper alone
+loses to them, but the wrapper on top of lags is best of all, clean and
+spiked (TrumpApproval 0.252 vs the lag baseline's 0.266 untouched, 0.280
+vs 0.309 spiked). Everywhere else the wrapper beats the lag ladder
+outright, 10/10 under spikes on two datasets, because a lag ladder
+inherits every pathology of the raw stream. A JS-side audit of the
+simulated generator agrees: against a 13-lag baseline the front-end ties
+clean and wins 9-10/10 contaminated. Raw lags and forecaster features
+are two ways to buy the same history; lags are the fragile way. Full
+tables: `ablation_lag.py` in the timemachines benchmarks.
+
 ## Cost, measured
 
 LaplaceFeatures runs at about 390 microseconds per stream per sample

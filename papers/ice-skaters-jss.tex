@@ -289,7 +289,13 @@ pair anchors the prediction and reduces reliance on corrupted features.
 The recommendation therefore orders itself: add the target pair always, one
 wrapper, helps clean and contaminated alike; replace input features with
 their pairs only when the features themselves are distrusted; never use the
-surprise alone.
+surprise alone. A fairness audit added the referee's baseline, the same
+pipeline plus raw target lags $1..8$: on the smooth single-entity series raw
+lags are strong and spike-resistant and the wrapper alone loses to them, but
+the wrapper on top of lags is best of all, clean and spiked, and everywhere
+else the wrapper beats the lag ladder outright, since a lag ladder inherits
+every pathology of the raw stream. Raw lags and forecaster features are two
+ways to buy the same history; lags are the fragile way.
 
 \section{Theory: pathwise regret transfer} \label{sec:theory}
 

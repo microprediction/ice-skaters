@@ -129,7 +129,12 @@
       target pair always; replace features with their pairs only when you
       distrust the features; never use z alone. Cost, measured: about 390
       microseconds per stream per sample, roughly 900x StandardScaler,
-      right at human timescales and wrong in a hot path.
+      right at human timescales and wrong in a hot path. The fairness
+      audit added the referee's baseline, raw target lags: strong on
+      smooth single-entity series, fragile everywhere else, and the
+      wrapper on top of lags improved the strongest configuration found
+      on three of four datasets. Raw lags and forecaster features buy the
+      same history; lags are the fragile way.
     </p>
 
     <h2>The theorem</h2>
