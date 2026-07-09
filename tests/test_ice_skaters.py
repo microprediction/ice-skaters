@@ -130,3 +130,34 @@ def test_mus_enrichment_exposes_previous_forecast():
     assert "mu_y_prev1" in aug and math.isfinite(aug["mu_y_prev1"])
     with pytest.raises(ValueError):
         LaplaceTarget(regressor=None, mus=0)
+
+
+def test_lagged_target_feature_triggers_warning():
+    import warnings as w
+    model = _pipeline()
+    rng = random.Random(9)
+    prev_y = 0.0
+    with w.catch_warnings(record=True) as caught:
+        w.simplefilter("always")
+        for t in range(60):
+            x = {"a": rng.gauss(0, 1), "y_lag": prev_y}
+            model.predict_one(x)
+            y = 0.5 * x["a"] + rng.gauss(0, 0.1)
+            model.learn_one(x, y)
+            prev_y = y
+    assert any("lagged copy of the target" in str(c.message) for c in caught)
+    # and only once
+    assert sum("lagged copy" in str(c.message) for c in caught) == 1
+
+
+def test_no_warning_on_ordinary_features():
+    import warnings as w
+    model = _pipeline()
+    rng = random.Random(10)
+    with w.catch_warnings(record=True) as caught:
+        w.simplefilter("always")
+        for t in range(80):
+            x = {"a": rng.gauss(0, 1)}
+            model.predict_one(x)
+            model.learn_one(x, 0.5 * x["a"] + rng.gauss(0, 0.1))
+    assert not any("lagged copy" in str(c.message) for c in caught)

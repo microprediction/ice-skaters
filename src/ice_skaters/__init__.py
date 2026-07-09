@@ -55,11 +55,12 @@ Implementation notes:
 
 from __future__ import annotations
 import math
+import warnings
 from river import base
 from skaters import laplace
 from skaters.dist import Dist
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 __all__ = ["LaplaceFeatures", "LaplaceTarget"]
 
 _STD_NORMAL = Dist.gaussian(0.0, 1.0)
@@ -202,6 +203,9 @@ class LaplaceTarget(base.Regressor):
         self._pending = None       # predictive Dist for the next y
         self._mu_hist = []         # previous predictive means, newest first
         self._zy = 0.0
+        self._prev_y = None        # lagged-target footgun detector
+        self._lagged = {}          # key -> consecutive matches
+        self._warned = False
 
     def _augment(self, x):
         mu_key, z_key = self.keys
@@ -215,7 +219,29 @@ class LaplaceTarget(base.Regressor):
     def predict_one(self, x):
         return self.regressor.predict_one(self._augment(x))
 
+    def _check_lagged_target(self, x):
+        # A feature stream equal to the lagged target duplicates this
+        # wrapper's surprise column exactly (two forecasters, same
+        # history), doubling the gradient on the one feature not to
+        # over-react to. Warn once; use mus=2 for the safe enrichment.
+        if self._warned or self._prev_y is None:
+            return
+        for k, v in x.items():
+            if isinstance(v, (int, float)) and float(v) == self._prev_y:
+                self._lagged[k] = self._lagged.get(k, 0) + 1
+                if self._lagged[k] >= 20:
+                    self._warned = True
+                    warnings.warn(
+                        f"feature {k!r} looks like a lagged copy of the "
+                        "target; routed through LaplaceFeatures it will "
+                        "duplicate this wrapper's surprise column exactly. "
+                        "Use LaplaceTarget(..., mus=2) instead.",
+                        stacklevel=3)
+            else:
+                self._lagged.pop(k, None)
+
     def learn_one(self, x, y):
+        self._check_lagged_target(x)
         self.regressor.learn_one(self._augment(x), y)
         y = float(y)
         if math.isfinite(y):
@@ -229,3 +255,4 @@ class LaplaceTarget(base.Regressor):
             self._pending = dists[0]
             z = self._state["z"][0]
             self._zy = z if z is not None else 0.0
+            self._prev_y = y

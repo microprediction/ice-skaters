@@ -245,6 +245,28 @@ export class LaplaceTarget {
     this.pending = null;
     this.muHist = [];
     this.zy = 0.0;
+    this.prevY = null;
+    this.laggedCounts = new Map();
+    this.warned = false;
+  }
+  _checkLaggedTarget(x) {
+    // a feature equal to the lagged target duplicates this wrapper's
+    // surprise column exactly; warn once, recommend mus=2
+    if (this.warned || this.prevY === null) return;
+    for (const [k, v] of Object.entries(x)) {
+      if (typeof v === "number" && v === this.prevY) {
+        const c = (this.laggedCounts.get(k) || 0) + 1;
+        this.laggedCounts.set(k, c);
+        if (c >= 20) {
+          this.warned = true;
+          console.warn(`ice-skaters: feature '${k}' looks like a lagged copy ` +
+            "of the target; it will duplicate the wrapper's surprise column " +
+            "exactly. Use new LaplaceTarget(regressor, keys, 2) instead.");
+        }
+      } else {
+        this.laggedCounts.delete(k);
+      }
+    }
   }
   _augment(x) {
     const [muKey, zKey] = this.keys;
@@ -261,6 +283,7 @@ export class LaplaceTarget {
     return this.regressor.predictOne(this._augment(x));
   }
   learnOne(x, y) {
+    this._checkLaggedTarget(x);
     this.regressor.learnOne(this._augment(x), y);
     if (isFiniteNumber(y)) {
       if (this.pending && this.mus > 1) {
@@ -272,6 +295,7 @@ export class LaplaceTarget {
       this.pending = dists[0];
       const z = st.z[0];
       this.zy = z === null || z === undefined ? 0.0 : z;
+      this.prevY = y;
     }
   }
 }
