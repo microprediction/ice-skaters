@@ -59,7 +59,7 @@ from river import base
 from skaters import laplace
 from skaters.dist import Dist
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 __all__ = ["LaplaceFeatures", "LaplaceTarget"]
 
 _STD_NORMAL = Dist.gaussian(0.0, 1.0)
@@ -178,7 +178,13 @@ class LaplaceTarget(base.Regressor):
 
     At prediction time the inner regressor receives, alongside x, the
     body's forecast of the y it is about to predict (``mu_y``) and the
-    surprise of the previous y (``z_y``). The key names carry
+    surprise of the previous y (``z_y``). With ``mus=2`` it also exposes
+    the previous tick's forecast (``mu_y_prev1``), a measured, free
+    enrichment: it needs no extra forecaster, and in the audit it cut the
+    clean-data toll roughly in half while improving every contaminated
+    case. Do NOT hand the learner a lagged copy of the target as an extra
+    stream instead: that route duplicates the surprise column exactly,
+    doubling the gradient on the one feature not to over-react to. The key names carry
     LaplaceFeatures' own prefixes on purpose, so a downstream
     LaplaceFeatures passes them through instead of forecasting the
     forecast. The same pre-update pair is used
@@ -186,17 +192,25 @@ class LaplaceTarget(base.Regressor):
     stays raw: this wrapper never transforms y, it only adds features.
     """
 
-    def __init__(self, regressor, keys=("mu_y", "z_y")):
+    def __init__(self, regressor, keys=("mu_y", "z_y"), mus: int = 1):
+        if mus < 1:
+            raise ValueError("mus must be >= 1")
         self.regressor = regressor
         self.keys = keys
+        self.mus = mus             # trailing forecast means to expose
         self._state = None
         self._pending = None       # predictive Dist for the next y
+        self._mu_hist = []         # previous predictive means, newest first
         self._zy = 0.0
 
     def _augment(self, x):
         mu_key, z_key = self.keys
         mu = self._pending.mean if self._pending is not None else 0.0
-        return {**x, mu_key: mu, z_key: self._zy}
+        out = {**x, mu_key: mu, z_key: self._zy}
+        for i in range(1, self.mus):
+            out[f"{mu_key}_prev{i}"] = (self._mu_hist[i - 1]
+                                        if len(self._mu_hist) >= i else 0.0)
+        return out
 
     def predict_one(self, x):
         return self.regressor.predict_one(self._augment(x))
@@ -207,6 +221,9 @@ class LaplaceTarget(base.Regressor):
         if math.isfinite(y):
             # laplace is parade-wrapped: state["z"][0] is the surprise of
             # this y against the predictive issued before it arrived
+            if self._pending is not None and self.mus > 1:
+                self._mu_hist.insert(0, self._pending.mean)
+                del self._mu_hist[self.mus - 1:]
             dists, self._state = _skater()(
                 _winsorize(y, self._pending), self._state)
             self._pending = dists[0]

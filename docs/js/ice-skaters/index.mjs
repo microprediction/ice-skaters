@@ -236,20 +236,26 @@ export class LaplaceFeatures {
 export class LaplaceTarget {
   // Port of ice_skaters.LaplaceTarget: augment features with the target's
   // own (mu_y, zy) pair; the target itself stays raw.
-  constructor(regressor, keys = ["mu_y", "z_y"]) {
+  constructor(regressor, keys = ["mu_y", "z_y"], mus = 1) {
+    if (mus < 1) throw new Error("mus must be >= 1");
     this.regressor = regressor;
     this.keys = keys;
+    this.mus = mus;
     this.state = null;
     this.pending = null;
+    this.muHist = [];
     this.zy = 0.0;
   }
   _augment(x) {
     const [muKey, zKey] = this.keys;
-    return {
+    const out = {
       ...x,
       [muKey]: this.pending ? this.pending.mean : 0.0,
       [zKey]: this.zy,
     };
+    for (let i = 1; i < this.mus; i++)
+      out[muKey + "_prev" + i] = this.muHist.length >= i ? this.muHist[i - 1] : 0.0;
+    return out;
   }
   predictOne(x) {
     return this.regressor.predictOne(this._augment(x));
@@ -257,6 +263,10 @@ export class LaplaceTarget {
   learnOne(x, y) {
     this.regressor.learnOne(this._augment(x), y);
     if (isFiniteNumber(y)) {
+      if (this.pending && this.mus > 1) {
+        this.muHist.unshift(this.pending.mean);
+        this.muHist.length = Math.min(this.muHist.length, this.mus - 1);
+      }
       const [dists, st] = skater()(winsorize(y, this.pending), this.state);
       this.state = st;
       this.pending = dists[0];
