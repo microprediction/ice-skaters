@@ -75,12 +75,18 @@
 
     <p>
       The stream is a simple driven process: a hidden signal x pushes the
-      target y around. Both models see the same observations and predict one
-      step ahead, learn, and move on. Press the buttons to corrupt a reading
-      and watch what each model does with it. The baseline standardizes with
-      a running mean and deviation, so a bad tick arrives at full force and
-      poisons the statistics; the fronted model receives what its forecasters
-      expected and how surprising the value was, capped near seven.
+      target y around. The comparison is information-fair, generously so:
+      the baseline regresses on the current x, four raw lags of x, and
+      eight raw lags of y, which is more raw history than the fronted
+      model's forecasters exploit, while the fronted model sees the same
+      two streams as four calibrated features. Both predict one step ahead, learn, and
+      move on. Press the buttons to corrupt a reading, at the benchmark
+      study's six-to-ten-sigma scale, and watch. The baseline standardizes
+      with a running mean and deviation, so a bad tick arrives at full
+      force and poisons the statistics; the fronted model receives what its
+      forecasters expected and a surprise capped near seven. On clean data
+      the baseline is slightly ahead, and that is the toll the papers page
+      reports; corruption is where the lanes diverge.
     </p>
 
     <div class="controls">
@@ -169,7 +175,8 @@
 
     const WINDOW = 120;      // points shown in stream/z charts
     const MAEWIN = 400;      // running-MAE window
-    let rng, gauss, x, y, t, base, front, hist, maeHist, running = true;
+    let rng, gauss, x, y, t, base, front, hist, maeHist, xbuf, ybuf,
+      running = true;
     let pendingSpikeX = false, pendingSpikeY = false;
 
     function makeGauss(r) {
@@ -183,7 +190,7 @@
       rng = mulberry(42); gauss = makeGauss(rng);
       x = 0; y = 0; t = 0;
       base = baselineModel(); front = frontedModel();
-      hist = []; maeHist = [];
+      hist = []; maeHist = []; xbuf = []; ybuf = [];
     }
     reset();
 
@@ -199,12 +206,23 @@
       if (pendingSpikeY || (auto && rng() < 0.02)) {
         yo += 10 * (rng() < 0.5 ? -1 : 1); corrupted = true; pendingSpikeY = false;
       }
-      const feats = { x: xo };
-      const pBase = base.predictOne(feats);
-      const pFront = front.predictOne(feats);
+      // information-fair, generously: the baseline regresses on x with
+      // four raw lags and y with eight, more raw history than the
+      // forecasters' AR blocks use; the fronted model sees the same two
+      // streams through its forecasters
+      xbuf.push(xo); ybuf.push(yo);
+      if (xbuf.length > 16) { xbuf.shift(); ybuf.shift(); }
+      const featsBase = { x: xo };
+      for (let l = 1; l <= 4; l++)
+        featsBase["x_" + l] = xbuf.length > l ? xbuf[xbuf.length - 1 - l] : 0;
+      for (let l = 1; l <= 8; l++)
+        featsBase["y_" + l] = ybuf.length > l ? ybuf[ybuf.length - 1 - l] : 0;
+      const featsFront = { x: xo };
+      const pBase = base.predictOne(featsBase);
+      const pFront = front.predictOne(featsFront);
       // score against the true value; corruption is measurement error
-      base.learnOne(feats, yo);
-      front.learnOne(feats, yo);
+      base.learnOne(featsBase, yo);
+      front.learnOne(featsFront, yo);
       const zAfter = front.zy;   // surprise of the y that just arrived
       hist.push({ t, y: yTrue, yo, mu: front.pending ? front.pending.mean : 0,
                   z: zAfter, corrupted, pBase, pFront });
@@ -378,10 +396,11 @@
     document.getElementById("reset").onclick = () => { reset(); };
     document.getElementById("tableview").onchange = drawTable;
 
-    // warm both models through the chaotic transient (the target scaler's
-    // variance starts at zero and the first fronted predictions can be
-    // wild), then start the score from a clean slate
-    for (let i = 0; i < 120; i++) step();
+    // warm both models to steady state (the target scaler's variance
+    // starts at zero, early fronted predictions can be wild, and the SGD
+    // learners need a few hundred ticks to converge), then start the
+    // visible score from a clean slate
+    for (let i = 0; i < 500; i++) step();
     hist = []; maeHist = [];
     frame();
   </script>
