@@ -3,51 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>ice-skaters — live demo</title>
-  <meta name="description" content="A live stream, two models, and a fat-finger button: watch calibrated forecast features hold their footing while a scaler pipeline degrades." />
+  <title>ice-skaters — demos</title>
+  <meta name="description" content="Interactive demos: calibrated forecast features for streaming regression, running entirely in your browser." />
   <link rel="stylesheet" href="../academic.css" />
-  <style>
-    .viz-root {
-      /* dataviz reference palette; dark steps kept for a future dark site */
-      --surface-1: #ffffff;
-      --series-1: #2a78d6;   /* fronted / forecaster */
-      --series-2: #1baf7a;   /* baseline (relief: direct labels shipped) */
-      --ink-1: #1a1a1a;
-      --ink-2: #5a5a5a;
-      --grid: #ececec;
-    }
-    .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
-                margin: 14px 0 6px; }
-    .controls button { background: var(--accent); color: #fff; border: 0;
-                border-radius: 5px; padding: 7px 14px; font-size: 0.92rem;
-                cursor: pointer; }
-    .controls button.secondary { background: #fff; color: var(--text);
-                border: 1px solid var(--border); }
-    .controls label { font-size: 0.9rem; color: var(--muted); display: flex;
-                align-items: center; gap: 6px; }
-    .tiles { display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0; }
-    .tile { flex: 1 1 160px; background: var(--panel); border: 1px solid
-            var(--border); border-radius: 8px; padding: 12px 16px; }
-    .tile .k { font-size: 0.8rem; color: var(--muted); }
-    .tile .v { font-size: 1.7rem; font-weight: 600; font-variant-numeric:
-               tabular-nums; }
-    .tile .v.blue { color: var(--series-1); }
-    .tile .v.aqua { color: #128a60; } /* darkened for text-on-white duty */
-    .chart-card { background: var(--panel); border: 1px solid var(--border);
-                  border-radius: 8px; padding: 10px 14px 4px; margin: 12px 0; }
-    .chart-card h3 { margin: 2px 0 2px; font-size: 0.95rem; }
-    .chart-card .sub { font-size: 0.8rem; color: var(--muted); margin: 0 0 4px; }
-    .legend { font-size: 0.8rem; color: var(--muted); display: flex; gap: 14px;
-              margin: 2px 0 4px; }
-    .legend .swatch { display: inline-block; width: 14px; height: 3px;
-              border-radius: 2px; vertical-align: middle; margin-right: 5px; }
-    svg text { font-family: inherit; }
-    .tip { position: fixed; pointer-events: none; background: #fff; border:
-           1px solid var(--border); border-radius: 6px; box-shadow: 0 2px 8px
-           rgba(0,0,0,0.08); padding: 6px 10px; font-size: 0.8rem;
-           display: none; z-index: 10; font-variant-numeric: tabular-nums; }
-    table.ticks { font-size: 0.82rem; }
-  </style>
 </head>
 <body>
   <header class="site-header">
@@ -66,84 +24,36 @@
     </div>
   </header>
 
-  <main class="viz-root">
-    <h1>Live demo</h1>
-    <p class="subtitle">A stream, two models, and a fat-finger button.
-      Everything on this page runs in your browser: the forecasters are the
-      skaters JavaScript twin, and the baseline is a faithful port of river's
-      recommended pipeline.</p>
-
-    <p>
-      The stream is a simple driven process: a hidden signal x pushes the
-      target y around. Both models see the same observations and predict one
-      step ahead, learn, and move on. Press the buttons to corrupt a reading
-      and watch what each model does with it. The baseline standardizes with
-      a running mean and deviation, so a bad tick arrives at full force and
-      poisons the statistics; the fronted model receives what its forecasters
-      expected and how surprising the value was, capped near seven.
+  <main>
+    <h1>Interactive demos</h1>
+    <p class="subtitle">
+      Everything below runs entirely in your browser, no server. The
+      forecasters are the skaters JavaScript twin, and the streaming-ML
+      pieces are faithful ports of river's, parity-tested against Python.
     </p>
 
-    <div class="controls">
-      <button id="toggle">Pause</button>
-      <button id="spikeX" class="secondary">Fat-finger x</button>
-      <button id="spikeY" class="secondary">Fat-finger y</button>
-      <label><input type="checkbox" id="auto" /> auto-corrupt 2%</label>
-      <label>speed <input type="range" id="speed" min="1" max="30"
-             value="12" /></label>
-      <button id="reset" class="secondary">Reset</button>
-      <label><input type="checkbox" id="tableview" /> table view</label>
+    <div class="card-grid">
+      <a class="card" href="./fat-finger.html">
+        <h3>The fat-finger race &rarr;</h3>
+        <p>A live stream, two models, and buttons that corrupt a reading on
+          demand. The river-style pipeline takes each bad tick at full force
+          and its running statistics remember it; the fronted model receives
+          what its forecasters expected and a surprise capped near seven.
+          Watch the running MAE race decide.</p>
+      </a>
     </div>
 
-    <div class="tiles">
-      <div class="tile"><div class="k">river-style pipeline, running MAE</div>
-        <div class="v aqua" id="maeBase">–</div></div>
-      <div class="tile"><div class="k">ice-skaters fronted, running MAE</div>
-        <div class="v blue" id="maeFront">–</div></div>
-      <div class="tile"><div class="k">fronted error as share of baseline</div>
-        <div class="v" id="ratio">–</div></div>
-    </div>
+    <h2>Use the port yourself</h2>
+    <p>The JavaScript twin is a set of zero-dependency ES modules. Drop it
+      into any page:</p>
+    <pre><code>&lt;script type="module"&gt;
+  import { LaplaceFeatures, LaplaceTarget, frontedModel }
+    from "https://ice-skaters.microprediction.org/js/ice-skaters/index.mjs";
 
-    <div class="chart-card">
-      <h3>The target, and what the forecaster expected</h3>
-      <div class="legend">
-        <span><span class="swatch" style="background:var(--ink-2)"></span>actual y</span>
-        <span><span class="swatch" style="background:var(--series-1)"></span>forecaster's expectation</span>
-        <span>&#9650; corrupted reading</span>
-      </div>
-      <svg id="streamChart" viewBox="0 0 720 150" style="width:100%"></svg>
-    </div>
-
-    <div class="chart-card">
-      <h3>The surprise z of each arriving y</h3>
-      <p class="sub">The news channel: near zero when life is as expected,
-        capped at &plusmn;7.03 no matter how wild the reading.</p>
-      <svg id="zChart" viewBox="0 0 720 110" style="width:100%"></svg>
-    </div>
-
-    <div class="chart-card">
-      <h3>Running MAE, last 400 ticks</h3>
-      <div class="legend">
-        <span><span class="swatch" style="background:var(--series-2)"></span>river-style pipeline</span>
-        <span><span class="swatch" style="background:var(--series-1)"></span>ice-skaters fronted</span>
-      </div>
-      <svg id="maeChart" viewBox="0 0 720 170" style="width:100%"></svg>
-    </div>
-
-    <div class="chart-card" id="tickTableCard" style="display:none">
-      <h3>Recent ticks</h3>
-      <table class="ticks" id="tickTable"></table>
-    </div>
-
-    <p>
-      The demo is deliberately unfair to no one: both models run at their
-      defaults, both see identical observations, and the corruption you
-      inject is measurement error on the observed values, never on the truth
-      the errors are scored against. Source: this page and
-      <code>docs/js/ice-skaters/index.mjs</code>, dependency-free ES modules.
-    </p>
+  const model = frontedModel();
+  // model.predictOne({temp: 6.5}); model.learnOne({temp: 6.5}, 4.0);
+&lt;/script&gt;</code></pre>
   </main>
-
-  <div class="tip" id="tip"></div>
 
   <footer>
     <a href="https://github.com/microprediction/ice-skaters">Source</a> &middot;
@@ -152,238 +62,5 @@
     <a href="https://github.com/microprediction/timemachines">timemachines</a>,
     <a href="https://github.com/microprediction/precise">precise</a>).
   </footer>
-
-  <script type="module">
-    import { baselineModel, frontedModel } from "../js/ice-skaters/index.mjs";
-
-    // ---- deterministic rng so Reset reproduces ----
-    function mulberry(seed) {
-      let a = seed;
-      return () => {
-        a |= 0; a = (a + 0x6D2B79F5) | 0;
-        let t = Math.imul(a ^ (a >>> 15), 1 | a);
-        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-      };
-    }
-
-    const WINDOW = 120;      // points shown in stream/z charts
-    const MAEWIN = 400;      // running-MAE window
-    let rng, gauss, x, y, t, base, front, hist, maeHist, running = true;
-    let pendingSpikeX = false, pendingSpikeY = false;
-
-    function makeGauss(r) {
-      return () => {
-        const u = Math.max(r(), 1e-12), v = r();
-        return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
-      };
-    }
-
-    function reset() {
-      rng = mulberry(42); gauss = makeGauss(rng);
-      x = 0; y = 0; t = 0;
-      base = baselineModel(); front = frontedModel();
-      hist = []; maeHist = [];
-    }
-    reset();
-
-    function step() {
-      x = 0.8 * x + gauss();
-      const yTrue = 0.7 * y + x + 0.5 * gauss();
-      y = yTrue;
-      let xo = x, yo = yTrue, corrupted = false;
-      const auto = document.getElementById("auto").checked;
-      if (pendingSpikeX || (auto && rng() < 0.02)) {
-        xo += 10 * (rng() < 0.5 ? -1 : 1); corrupted = true; pendingSpikeX = false;
-      }
-      if (pendingSpikeY || (auto && rng() < 0.02)) {
-        yo += 10 * (rng() < 0.5 ? -1 : 1); corrupted = true; pendingSpikeY = false;
-      }
-      const feats = { x: xo };
-      const pBase = base.predictOne(feats);
-      const pFront = front.predictOne(feats);
-      // score against the true value; corruption is measurement error
-      base.learnOne(feats, yo);
-      front.learnOne(feats, yo);
-      const zAfter = front.zy;   // surprise of the y that just arrived
-      hist.push({ t, y: yTrue, yo, mu: front.pending ? front.pending.mean : 0,
-                  z: zAfter, corrupted, pBase, pFront });
-      if (hist.length > WINDOW) hist.shift();
-      maeHist.push({ t, eb: Math.abs(pBase - yTrue),
-                     ef: Math.abs(pFront - yTrue) });
-      if (maeHist.length > MAEWIN) maeHist.shift();
-      t++;
-    }
-
-    // ---- tiny SVG helpers ----
-    const NS = "http://www.w3.org/2000/svg";
-    function el(tag, attrs) {
-      const e = document.createElementNS(NS, tag);
-      for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
-      return e;
-    }
-    function linePath(pts) {
-      return pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " "
-                               + p[1].toFixed(1)).join(" ");
-    }
-    function drawAxis(svg, W, H, pad, lo, hi) {
-      for (const frac of [0, 0.5, 1]) {
-        const yy = pad + (H - 2 * pad) * frac;
-        svg.appendChild(el("line", { x1: pad, x2: W - pad, y1: yy, y2: yy,
-          stroke: "var(--grid)", "stroke-width": 1 }));
-        const val = hi - (hi - lo) * frac;
-        const label = document.createElementNS(NS, "text");
-        label.setAttribute("x", 4); label.setAttribute("y", yy + 3);
-        label.setAttribute("font-size", "9"); label.setAttribute("fill", "var(--ink-2)");
-        label.textContent = val.toFixed(1);
-        svg.appendChild(label);
-      }
-    }
-
-    function drawStream() {
-      const svg = document.getElementById("streamChart");
-      svg.replaceChildren();
-      if (hist.length < 2) return;
-      const W = 720, H = 150, pad = 14;
-      const vals = hist.flatMap(h => [h.y, h.mu]);
-      const lo = Math.min(...vals), hi = Math.max(...vals);
-      const sx = i => pad + (W - 2 * pad) * i / (WINDOW - 1);
-      const sy = v => pad + (H - 2 * pad) * (1 - (v - lo) / (hi - lo + 1e-9));
-      drawAxis(svg, W, H, pad, lo, hi);
-      svg.appendChild(el("path", { d: linePath(hist.map((h, i) => [sx(i), sy(h.y)])),
-        fill: "none", stroke: "var(--ink-2)", "stroke-width": 2 }));
-      svg.appendChild(el("path", { d: linePath(hist.map((h, i) => [sx(i), sy(h.mu)])),
-        fill: "none", stroke: "var(--series-1)", "stroke-width": 2 }));
-      hist.forEach((h, i) => {
-        if (h.corrupted) svg.appendChild(el("path", {
-          d: `M ${sx(i) - 4} ${pad + 4} l 4 -6 l 4 6 z`,
-          fill: "var(--ink-2)" }));
-      });
-    }
-
-    function drawZ() {
-      const svg = document.getElementById("zChart");
-      svg.replaceChildren();
-      if (hist.length < 2) return;
-      const W = 720, H = 110, pad = 12, ZM = 7.5;
-      const sx = i => pad + (W - 2 * pad) * i / (WINDOW - 1);
-      const sy = v => pad + (H - 2 * pad) * (1 - (v + ZM) / (2 * ZM));
-      for (const lvl of [-7.03, 0, 7.03]) {
-        svg.appendChild(el("line", { x1: pad, x2: W - pad, y1: sy(lvl), y2: sy(lvl),
-          stroke: "var(--grid)", "stroke-width": 1,
-          "stroke-dasharray": lvl === 0 ? "" : "4,4" }));
-        const label = document.createElementNS(NS, "text");
-        label.setAttribute("x", 4); label.setAttribute("y", sy(lvl) + 3);
-        label.setAttribute("font-size", "9"); label.setAttribute("fill", "var(--ink-2)");
-        label.textContent = lvl.toFixed(0);
-        svg.appendChild(label);
-      }
-      svg.appendChild(el("path", { d: linePath(hist.map((h, i) => [sx(i), sy(h.z)])),
-        fill: "none", stroke: "var(--series-1)", "stroke-width": 2 }));
-    }
-
-    function drawMae() {
-      const svg = document.getElementById("maeChart");
-      svg.replaceChildren();
-      if (maeHist.length < 20) return;
-      const W = 720, H = 170, pad = 16;
-      // running means over the window
-      const runb = [], runf = [];
-      let sb = 0, sf = 0;
-      maeHist.forEach((m, i) => {
-        sb += m.eb; sf += m.ef;
-        runb.push(sb / (i + 1)); runf.push(sf / (i + 1));
-      });
-      const hi = Math.max(...runb, ...runf) * 1.1;
-      const sx = i => pad + (W - 2 * pad) * i / (maeHist.length - 1);
-      const sy = v => pad + (H - 2 * pad) * (1 - v / hi);
-      drawAxis(svg, W, H, pad, 0, hi);
-      svg.appendChild(el("path", { d: linePath(runb.map((v, i) => [sx(i), sy(v)])),
-        fill: "none", stroke: "var(--series-2)", "stroke-width": 2 }));
-      svg.appendChild(el("path", { d: linePath(runf.map((v, i) => [sx(i), sy(v)])),
-        fill: "none", stroke: "var(--series-1)", "stroke-width": 2 }));
-      // direct labels at line ends (relief for the aqua contrast warning)
-      let lastLabelY = -100;
-      const endLabel = (arr, color, name) => {
-        const label = document.createElementNS(NS, "text");
-        label.setAttribute("x", W - pad - 4);
-        let ly = sy(arr[arr.length - 1]) - 5;
-        if (Math.abs(ly - lastLabelY) < 12) ly = lastLabelY + 12;
-        lastLabelY = ly;
-        label.setAttribute("y", ly);
-        label.setAttribute("font-size", "10");
-        label.setAttribute("text-anchor", "end");
-        label.setAttribute("fill", "var(--ink-1)");
-        label.textContent = `${name} ${arr[arr.length - 1].toFixed(3)}`;
-        svg.appendChild(label);
-      };
-      endLabel(runb, "var(--series-2)", "pipeline");
-      endLabel(runf, "var(--series-1)", "fronted");
-      // update tiles
-      document.getElementById("maeBase").textContent =
-        runb[runb.length - 1].toFixed(3);
-      document.getElementById("maeFront").textContent =
-        runf[runf.length - 1].toFixed(3);
-      const r = runf[runf.length - 1] / (runb[runb.length - 1] + 1e-12);
-      document.getElementById("ratio").textContent = (100 * r).toFixed(0) + "%";
-      // hover: nearest tick tooltip
-      svg.onmousemove = ev => {
-        const rect = svg.getBoundingClientRect();
-        const frac = (ev.clientX - rect.left) / rect.width;
-        const i = Math.min(maeHist.length - 1,
-                           Math.max(0, Math.round(frac * (maeHist.length - 1))));
-        const tip = document.getElementById("tip");
-        tip.style.display = "block";
-        tip.style.left = (ev.clientX + 12) + "px";
-        tip.style.top = (ev.clientY + 12) + "px";
-        tip.innerHTML = `tick ${maeHist[i].t}<br/>pipeline ${runb[i].toFixed(3)}
-                         <br/>fronted ${runf[i].toFixed(3)}`;
-      };
-      svg.onmouseleave = () => {
-        document.getElementById("tip").style.display = "none";
-      };
-    }
-
-    function drawTable() {
-      const card = document.getElementById("tickTableCard");
-      const on = document.getElementById("tableview").checked;
-      card.style.display = on ? "" : "none";
-      if (!on) return;
-      const rows = hist.slice(-12);
-      document.getElementById("tickTable").innerHTML =
-        "<tr><th>tick</th><th>observed y</th><th>expected</th><th>z</th>" +
-        "<th>pipeline pred</th><th>fronted pred</th><th>corrupted</th></tr>" +
-        rows.map(h => `<tr><td>${h.t}</td><td>${h.yo.toFixed(2)}</td>` +
-          `<td>${h.mu.toFixed(2)}</td><td>${h.z.toFixed(2)}</td>` +
-          `<td>${h.pBase.toFixed(2)}</td><td>${h.pFront.toFixed(2)}</td>` +
-          `<td>${h.corrupted ? "yes" : ""}</td></tr>`).join("");
-    }
-
-    function frame() {
-      if (running) {
-        const perFrame = Math.max(1, Math.round(
-          document.getElementById("speed").value / 10));
-        for (let i = 0; i < perFrame; i++) step();
-        drawStream(); drawZ(); drawMae(); drawTable();
-      }
-      setTimeout(frame, 90);
-    }
-
-    document.getElementById("toggle").onclick = e => {
-      running = !running;
-      e.target.textContent = running ? "Pause" : "Run";
-    };
-    document.getElementById("spikeX").onclick = () => { pendingSpikeX = true; };
-    document.getElementById("spikeY").onclick = () => { pendingSpikeY = true; };
-    document.getElementById("reset").onclick = () => { reset(); };
-    document.getElementById("tableview").onchange = drawTable;
-
-    // warm both models through the chaotic transient (the target scaler's
-    // variance starts at zero and the first fronted predictions can be
-    // wild), then start the score from a clean slate
-    for (let i = 0; i < 120; i++) step();
-    hist = []; maeHist = [];
-    frame();
-  </script>
 </body>
 </html>
