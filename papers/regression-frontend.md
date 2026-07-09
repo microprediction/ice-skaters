@@ -182,19 +182,26 @@ rather than density failure, and the oracle decomposition. See
 ## The sufficiency study, and the claim's outer boundary
 
 The broadened question, are five calibrated numbers typically enough,
-was measured on 126 non-price FRED cross-series family pairs and the
-answer is no, on that universe, with instructive structure. river's
-linear learner disqualifies itself by divergence; with the tree, the
-rollup lands within 5% of a per-pair oracle raw configuration on 31-37%
-of pairs. The upstream reason is that on half the pairs the Laplace
-forecast alone beats every regression, raw or fronted, and where a
-covariate genuinely helps its median edge is 12.5%, of which the rollup
-keeps only part; a free EWMA rollup does about as well as features
-there. The recommendation on such universes is the forecast, not any
-regression. The front-end's measured territory is what the earlier
-sections establish: contamination insurance for model-based learners,
-structured streams, and the target wrapper on smooth single-entity
-series. Full tables: `sufficiency_study.py` in timemachines.
+was measured on 126 non-price FRED cross-series family pairs across
+three learners, and the answer is no on that universe, with the
+mechanism isolated. The first pass returned an artifact worth recording:
+river's default SGD linear model silently diverges on tiny-scale change
+series and its Hoeffding tree is starved at n~2,000, so both left a
+large contemporaneous sibling signal (median |corr| 0.45; lag-1 nil)
+untouched; river's own BayesianLinearRegression exploits it on 112 of
+118 pairs. Against that competent opponent, the five-number rollup is
+sufficient on 9% of pairs untouched (median 31% behind a per-pair
+oracle raw configuration) and 33% under covariate spikes, where the
+insurance narrows the gap. Adding raw values back one at a time locates
+the loss: most is the raw contemporaneous covariate level, which the
+(mean, surprise) pair cannot hand a linear learner since rebuilding a
+level needs the product of surprise and predictive scale; a residual
+~10% is the variance cost of carrying features that add nothing there.
+The recipe that follows: for same-tick covariates, include the raw level
+alongside the pair; the pair earns its keep on history-shaped channels,
+contaminated channels, and as the target wrapper. Full tables:
+`sufficiency_study.py`, `sufficiency_rls.py`, `sufficiency_blr.py` in
+timemachines.
 
 ## Status and next steps
 

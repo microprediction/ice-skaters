@@ -483,14 +483,19 @@ boundedness those results assume, turning an assumption into a property.
 The boundaries are stated in Section~\ref{sec:evidence}: distance-based
 learners, entity-interleaved streams, informative heavy tails, and the
 $900\times$ per-tick cost. A broadened sufficiency study on 126 non-price
-FRED cross-series pairs adds the outer boundary: there the forecast alone
-beats every regression configuration on half the pairs, and where a
-covariate genuinely helps (a median $12.5\%$ edge), the five-number rollup
-retains only part of it, with an EWMA rollup performing comparably as
-features. On noise-dominated cross-series universes the recommendation is
-the forecast, not any regression; the front-end's measured territory is
-contamination insurance, structured streams, and the target wrapper on
-smooth single-entity series. Open items, in order: per-entity bodies with
+FRED cross-series pairs, run across three learners, adds the outer boundary
+with its mechanism: the signal there is the raw contemporaneous level of a
+correlated sibling, and the (mean, surprise) pair is a lossy encoding of a
+level, since rebuilding one requires the product of surprise and predictive
+scale that a linear learner cannot form. Against river's own
+BayesianLinearRegression on raw features, the rollup sits roughly $30\%$
+behind untouched, the contamination insurance narrows the gap, and including
+the raw value alongside the pair recovers most of it. The recipe for
+same-tick covariates is therefore raw level plus pair; the pair earns its
+keep on history-shaped channels, contaminated channels, and as the target
+wrapper. Two learner facts travelled with the study: river's default SGD
+linear model silently diverges on tiny-scale streams, while its
+BayesianLinearRegression handles them well. Open items, in order: per-entity bodies with
 partial pooling in surprise space (the \code{ChickWeights} fix);
 multi-horizon surprises from $k > 1$ parades for drift and shift; and
 concept-drift classification. The package and all harnesses are open source;

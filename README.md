@@ -118,11 +118,17 @@ standalone forecast remains stronger than any of these regressions.
   per-entity forecasters; a single forecaster per key is handicapped.
 - If your heavy tails are signal rather than noise, taming them costs
   accuracy. Whether the extremes are informative decides the coordinates.
-- On noise-dominated cross-series universes (126 non-price FRED sibling
-  pairs, measured), no regression is the right move: the forecast alone
-  beats every configuration on half the pairs, and where a covariate
-  helps, the rollup keeps only part of a modest edge. Use the forecast
-  there, not this package.
+- When the signal is the raw contemporaneous level of a correlated
+  stream, send the raw level: the (mean, surprise) pair is a lossy
+  encoding of it, since rebuilding a level from a surprise needs the
+  product of surprise and scale that a linear learner cannot form.
+  Measured on 126 non-price FRED sibling pairs with river's own
+  BayesianLinearRegression: the pair alone sits ~30% behind raw features
+  clean (the insurance narrows it under contamination), and the fix is
+  simply to include the raw value alongside the pair for same-tick
+  covariates. One warning attached: river's default SGD LinearRegression
+  silently diverges on such tiny-scale streams; their
+  BayesianLinearRegression handles them well.
 
 ## JavaScript
 

@@ -165,14 +165,16 @@
     <h2>The outer boundary, measured</h2>
     <p>
       Are five calibrated numbers typically enough? On 126 non-price FRED
-      cross-series pairs: no. The forecast alone beats every regression
-      configuration on half the pairs, and where a covariate helps, the
-      rollup keeps only part of a modest edge, with a free EWMA rollup
-      doing about as well as features there. On such universes the
-      recommendation is the forecast, not this package. The front-end's
-      measured territory is contamination insurance for model-based
-      learners, structured streams, and the target wrapper on smooth
-      single-entity series.
+      cross-series pairs, measured across three learners: no. The signal
+      there is the raw contemporaneous level of a correlated sibling, and
+      the (mean, surprise) pair is a lossy encoding of a level, since
+      rebuilding one needs the product of surprise and scale that a
+      linear learner cannot form. The pair sits ~30% behind raw features
+      clean, the contamination insurance narrows it, and including the
+      raw value alongside the pair recovers most of the gap. Two learner
+      facts travelled with the study: river's default SGD linear model
+      silently diverges on tiny-scale streams, while its own
+      BayesianLinearRegression handles them well and carried the verdict.
     </p>
 
     <h2>Status</h2>
