@@ -203,6 +203,23 @@ contaminated channels, and as the target wrapper. Full tables:
 `sufficiency_study.py`, `sufficiency_rls.py`, `sufficiency_blr.py` in
 timemachines.
 
+## The additive study, and the one-sentence verdict
+
+The adopter's framing closes the map: adding the forecast features on
+top of raw lags, rather than substituting, is worth nothing on the same
+126 pairs (mu_y adds a median 0.16% on top of the raw lag; the full
+rollup added is harmful clean and still loses under spikes, because the
+insurance was always a property of substitution, which removes the
+unbounded channel, never of addition, which leaves it in). The epsilon
+symmetry with the forecaster front-end study is complete: ARIMA adds
++0.045 nats on top of Laplace, and Laplace adds roughly nothing on top
+of an implicit AR in raw lags. The verdict of the broadened study in one
+sentence: on plain linear universes the forecaster's knowledge is
+already spanned by raw lags, so send them raw; the calibrated features
+earn their place exactly when you distrust the channel (substitute, for
+insurance), when the stream has structure a lag cannot express
+(represent), or when you should not be regressing at all (forecast).
+
 ## Status and next steps
 
 Preliminary. Open items, in order: per-entity bodies for interleaved
