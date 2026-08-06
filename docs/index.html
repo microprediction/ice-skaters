@@ -30,39 +30,28 @@
       on a <a href="https://riverml.xyz">river</a>: calibrated forecast features
       for streaming ML pipelines.</p>
 
-    <h2>The idea, from zero</h2>
+    <h2>What it does</h2>
     <p>
-      Suppose data arrives one row at a time and a model must predict, then
-      learn, then move to the next row: sensor readings, poll numbers, prices,
-      counts. That is streaming machine learning, and
-      <a href="https://riverml.xyz">river</a> is the standard Python library
-      for it. The usual hygiene is to standardize each number on the fly,
-      subtracting a running mean and dividing by a running deviation. That
-      helps with scale and nothing else: one fat-fingered reading still
-      arrives at full force, and worse, it poisons the running mean and
-      deviation that every later reading is judged by.
+      In streaming machine learning a model predicts, learns and moves on, one
+      row at a time. The usual pre-processing in
+      <a href="https://riverml.xyz">river</a> is a running z-score: subtract a
+      running mean, divide by a running deviation. That fixes scale only. A bad
+      reading still reaches the model at full size, and it corrupts the running
+      mean and deviation used on every reading after it.
     </p>
     <p>
-      ice-skaters replaces that with a stronger contract. Every numeric
-      stream gets its own tiny online forecaster (from
-      <a href="https://skaters.microprediction.org">skaters</a>, a
-      zero-dependency forecasting library), and the model is handed the
-      forecaster's two-number summary instead of the raw value: the
-      predictive mean, which is what the forecaster expected this value to
-      be, and the standardized surprise z, which is how unexpected the actual
-      value was, on a universal scale where 2 is notable, 4 is remarkable,
-      and the value 7 cannot be exceeded by construction. The mean carries
-      the level. The z carries the news. A wild observation can move the
-      pair only so far, and that bounded influence is where the robustness
-      comes from.
+      ice-skaters gives each numeric stream its own online forecaster (from
+      <a href="https://skaters.microprediction.org">skaters</a>) and passes the
+      model two numbers in place of the raw value: the predictive mean, and the
+      standardized surprise z. z is bounded by construction — it cannot exceed
+      7 — so no single observation moves the pair far.
     </p>
     <figure style="margin:2em 0; text-align:center;">
       <img src="/assets/two-lanes.svg" alt="Two ways to feed a stream to a model" style="max-width:100%;" />
       <figcaption style="font-size:0.9em; color:#888; margin-top:0.5em;">
-        A running scaler passes the bad tick through at full force and its own
-        mean and variance get poisoned by it. The forecaster lane hands the
-        model what it expected and how surprising the value was, and no single
-        tick can move that pair very far.
+        A running scaler passes the bad tick through at full size and its mean
+        and variance absorb it. The forecaster lane passes the predictive mean
+        and a bounded z instead.
       </figcaption>
     </figure>
 
@@ -107,24 +96,22 @@ for x, y in datasets.TrumpApproval():
       </tbody>
     </table>
     <p>
-      The front-end pays a small toll on clean data and holds its footing when
-      the inputs misbehave. In controlled simulation the same substitution
-      beats raw features, a running z-score, a median/MAD winsorizer and a
-      Huberised loss 30 seeds out of 30 under every contamination type tested.
-      The full protocols and numbers are on the
-      <a href="/papers.html">papers page</a>, including the cases where
-      the front-end loses, because it does lose some.
+      The front-end costs a little on clean data and loses less under
+      corruption. In simulation the same substitution beats raw features, a
+      running z-score, a median/MAD winsorizer and a Huberised loss on 30 seeds
+      out of 30, under every contamination type tested. Protocols, numbers, and
+      the cases where the front-end loses are on the
+      <a href="/papers.html">papers page</a>.
     </p>
 
     <h2>Relation to the stack</h2>
     <p>
-      <a href="https://skaters.microprediction.org">skaters</a> does one
-      thing: fast univariate distributional forecasting, stdlib-only, in
-      Python or the browser. <a
-      href="https://github.com/microprediction/timemachines">timemachines</a>
-      builds anomaly detection on the same calibrated surprise streams.
-      ice-skaters is the bridge from those streams to river's estimator
-      protocol, and nothing more.
+      <a href="https://skaters.microprediction.org">skaters</a> is fast
+      univariate distributional forecasting, stdlib-only, in Python or the
+      browser. <a
+      href="https://timemachines.microprediction.org">timemachines</a> builds
+      anomaly detection on the same surprise streams. ice-skaters connects
+      those streams to river's estimator protocol.
     </p>
   </main>
 
