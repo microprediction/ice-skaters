@@ -52,8 +52,8 @@
       downstream <code>StandardScaler</code> exactly as you would with raw
       features. Booleans count as non-numeric. A non-finite numeric value is
       imputed by the forecast itself: the model receives the predictive mean
-      and z = 0, meaning expected value, no news, and the forecaster state is
-      not advanced. Keys may appear and disappear mid-stream; each key's
+      and z = 0, and the forecaster state is not advanced. Keys may appear and
+      disappear mid-stream; each key's
       forecaster starts on first sight.
     </p>
 
@@ -84,13 +84,10 @@
     </p>
     <pre><code>LaplaceTarget(regressor, keys=("mu_y", "zy"))</code></pre>
     <p>
-      The ablation made this quantitative: on river's own datasets,
-      LaplaceTarget alone, with raw features untouched, beat river's
-      recommended pipeline on three of four datasets untouched and 10/10
-      under feature contamination, and tied the fourth. If you adopt one
-      thing from this package, adopt this wrapper; add
-      <code>LaplaceFeatures</code> when you distrust the features
-      themselves.
+      In the ablation, on river's own datasets, LaplaceTarget alone with raw
+      features beat river's recommended pipeline on three of four datasets
+      clean, tied the fourth, and won 10/10 under feature contamination. Add
+      <code>LaplaceFeatures</code> when you distrust the features themselves.
     </p>
 
     <h2>The full recipe</h2>
@@ -105,16 +102,14 @@ model = LaplaceTarget(
     <p>
       The front-end composes with river's scalers rather than replacing them:
       the mu features live on the original scale, so the
-      <code>StandardScaler</code> still earns its keep, and
+      <code>StandardScaler</code> still applies, and
       <code>TargetStandardScaler</code> handles the target's scale for the
-      inner learner as usual. One enrichment is measured and free of
-      trade-offs: <code>LaplaceTarget(..., mus=2)</code> also exposes the
-      previous tick's forecast, which cut the clean-data toll roughly in
-      half in the audit while improving every contaminated case, at no
-      extra compute. Do not add a lagged copy of the target as an extra
-      feature stream instead: that duplicates the surprise column exactly,
-      doubling the gradient on the one feature not to over-react to, and
-      it measured strictly worse.
+      inner learner as usual. <code>LaplaceTarget(..., mus=2)</code> also
+      exposes the previous tick's forecast, which cut the clean-data cost
+      roughly in half in the audit, improved every contaminated case, and
+      costs no extra compute. Do not add a lagged copy of the target as an
+      extra feature stream instead: that duplicates the surprise column
+      exactly, doubling the gradient on it, and measured strictly worse.
     </p>
 
     <h2>Robustness and serialization</h2>
@@ -125,60 +120,56 @@ model = LaplaceTarget(
       sigma-relative on purpose: after a stretch of missing-data zeros a
       legitimate value sits billions of sigmas out and must pass. The gate is
       exact identity on any stream doubles can represent comfortably, and z
-      saturates near 7 long before it engages, so nothing observable changes
-      except that nothing crashes. Both estimators hold only plain state, no
+      saturates near 7 long before it engages. Both estimators hold only plain state, no
       closures, so they pickle and deep-copy like any river estimator.
     </p>
 
     <h2>Cost</h2>
     <p>
-      About 390 microseconds per numeric stream per sample,
-      single-threaded, roughly 900x river's StandardScaler, or 2,500
-      samples per second per stream. That is the price of a full
-      distributional forecaster per stream, and it buys the calibration.
-      Right for polls, sensors, market bars and anything at human
-      timescales; wrong inside a hot path at hundreds of thousands of
-      ticks per second.
+      About 390 microseconds per numeric stream per sample, single-threaded:
+      roughly 900x river's StandardScaler, or 2,500 samples per second per
+      stream. That is what running a distributional forecaster on every stream
+      costs. Fine for polls, sensors, market bars and anything at human
+      timescales. Too slow inside a hot path at hundreds of thousands of ticks
+      per second.
     </p>
 
-    <h2>Choosing coordinates: the measured decision rule</h2>
+    <h2>Which streams to convert</h2>
     <p>
-      Per channel, from the benchmark studies:
+      Decide one stream at a time. From the benchmark studies:
     </p>
     <ul>
-      <li><strong>Untrusted x</strong> (fat fingers, sensor glitches,
-        gaps): substitute the pair for the raw value. That is the
-        insurance, and it only works by substitution; adding the pair
-        beside the raw value protects nothing.</li>
-      <li><strong>Trusted, linear x</strong> (its information is its
-        level and lags): send it raw. The pair is a lossy encoding of a
-        level, measured about 30% behind on such universes, and the
-        forecast adds nothing beside raw lags there.</li>
-      <li><strong>Structured x</strong> (seasonality, volatility clock,
-        shape beyond lags): the pair wins even clean.</li>
-      <li><strong>Heavy-tailed but truthful x</strong>: raw. The
-        extremes are the most informative points and the clamp taxes
-        exactly them. "Noisy" must mean untrusted, not volatile.</li>
-      <li><strong>The target</strong>: the wrapper's pair is a separate
-        decision and earned its keep on smooth single-entity series;
-        <code>mus=2</code> is free.</li>
-      <li><strong>Don't know?</strong> Then it is an insurance decision
-        with measured premiums: zero to eleven percent clean depending
-        on structure, unbounded raw downside, 10/10 payout under
-        contamination. For one audited stream, go raw; for a thousand
-        streams nobody will inspect, insure.</li>
+      <li><strong>You don't trust the data</strong> (fat fingers, sensor
+        glitches, gaps): replace the raw value with the pair. Replacing is
+        what protects you. Adding the pair alongside the raw value does not
+        help, because the model can still see the bad value.</li>
+      <li><strong>You trust it and it is roughly linear</strong> (all the
+        information is in the level and its lags): leave it raw. The pair
+        throws away some of the level and measured about 30% worse on these
+        datasets.</li>
+      <li><strong>It has structure</strong> (seasonality, a volatility clock,
+        anything beyond lags): use the pair. It wins even on clean data.</li>
+      <li><strong>It has big jumps but they are real</strong>: leave it raw.
+        The extreme values carry the most information and the clamp on z is
+        what removes them. Convert streams you distrust, not streams that are
+        merely volatile.</li>
+      <li><strong>The target</strong>: decide separately. The wrapper helped
+        on smooth single-entity series, and <code>mus=2</code> costs nothing.</li>
+      <li><strong>You are not sure</strong>: converting costs between zero and
+        eleven percent on clean data, depending on the stream, and won 10 times
+        out of 10 when the data was corrupted. Leaving it raw has no ceiling on
+        how bad it can get. So: one stream you watch closely, leave raw; a
+        thousand streams nobody will look at, convert.</li>
     </ul>
 
     <h2>When not to use it</h2>
     <p>
-      Three boundaries, measured rather than guessed. Distance-based learners
-      such as KNN do not benefit: neighbour averaging is already spike-robust
-      and the extra dimensions degrade the metric. Streams that interleave
-      many entities under one key handicap a single forecaster per key; give
-      each entity its own key or wait for per-entity bodies. And if your heavy
-      tails are signal rather than noise, taming them costs accuracy: with a
-      correctly specified model and genuinely heavy-tailed inputs, the extreme
-      points are the most informative ones. Numbers for all three are on the
+      Distance-based learners such as KNN do not benefit: neighbour averaging
+      already handles spikes, and the extra dimensions make the metric worse.
+      Streams that interleave many entities under one key give a single
+      forecaster an impossible job; give each entity its own key, or wait for
+      per-entity bodies. And if the big jumps in your data are signal rather
+      than noise, damping them costs accuracy. Numbers for all three are on the
       <a href="/papers.html">papers page</a>.
     </p>
   </main>
