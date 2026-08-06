@@ -68,29 +68,29 @@
 
   <main class="viz-root">
     <h1>Live demo</h1>
-    <p class="subtitle">A stream, two models, and a fat-finger button.
-      Everything on this page runs in your browser: the forecasters are the
-      skaters JavaScript twin, and the baseline is a faithful port of river's
-      recommended pipeline.</p>
+    <p class="subtitle">A stream, two models, and a fat-finger button. The
+      forecasters are the skaters JavaScript twin; the baseline is a port of
+      river's recommended pipeline.</p>
 
     <p>
-      The stream is a simple driven process: a hidden signal x pushes the
-      target y around. The two models receive, each tick:
-      <strong>baseline</strong>, thirteen raw numbers, the current x, four
-      lags of x, and eight lags of y; <strong>fronted</strong>, exactly
-      four numbers, what its x-forecaster expected x to be and how
-      surprising the actual x was, plus the same expectation-and-surprise
-      pair for y from its y-forecaster. No raw values reach the fronted
-      regression; its two forecasters hold all the history. That is
-      generous to the baseline, which gets more raw history than the
-      forecasters exploit. Both predict one step ahead, learn, and
-      move on. Press the buttons to corrupt a reading, at the benchmark
-      study's six-to-ten-sigma scale, and watch. The baseline standardizes
-      with a running mean and deviation, so a bad tick arrives at full
-      force and poisons the statistics; the fronted model receives what its
-      forecasters expected and a surprise capped near seven. On clean data
-      the baseline is slightly ahead, and that is the toll the papers page
-      reports; corruption is where the lanes diverge.
+      A signal x drives a target y. Both models predict y one step ahead, then
+      learn, then move on. They see the same data.
+    </p>
+    <ul>
+      <li><strong>Baseline</strong> gets 13 raw numbers: the current x, four
+        lags of x, and eight lags of y.</li>
+      <li><strong>Fronted</strong> gets 4 numbers: what its forecaster expected
+        x to be and how surprising x turned out to be, and the same two for y.
+        It never sees a raw value — the forecasters keep the history.</li>
+    </ul>
+    <p>
+      So the baseline has more history to work with. Press a button to corrupt
+      a reading (six to ten sigma, as in the benchmark study). The baseline
+      divides by a running mean and deviation, so the bad tick reaches the
+      model at full size and skews those running statistics for a while. The
+      fronted model sees a surprise value, which is capped near 7. On clean
+      data the baseline is slightly ahead, by the amount the papers page
+      reports.
     </p>
 
     <div class="controls">
@@ -125,8 +125,8 @@
 
     <div class="chart-card">
       <h3>The surprise z of each arriving y</h3>
-      <p class="sub">The news channel: near zero when life is as expected,
-        capped at &plusmn;7.03 no matter how wild the reading.</p>
+      <p class="sub">Near zero when the value was expected, capped at
+        &plusmn;7.03 however extreme the reading.</p>
       <svg id="zChart" viewBox="0 0 720 110" style="width:100%"></svg>
     </div>
 
@@ -145,10 +145,9 @@
     </div>
 
     <p>
-      The demo is deliberately unfair to no one: both models run at their
-      defaults, both see identical observations, and the corruption you
-      inject is measurement error on the observed values, never on the truth
-      the errors are scored against. Source: this page and
+      Both models run at their defaults and see identical observations. The
+      corruption you inject is measurement error on the observed values, not on
+      the truth the errors are scored against. Source: this page and
       <code>docs/js/ice-skaters/index.mjs</code>, dependency-free ES modules.
     </p>
   </main>
