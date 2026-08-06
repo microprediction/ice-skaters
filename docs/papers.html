@@ -26,8 +26,8 @@
 
   <main>
     <h1>Papers</h1>
-    <p class="subtitle">Preliminary results for the regression front-end,
-      with the losing rows reported next to the winning ones.</p>
+    <p class="subtitle">Preliminary results for the regression front-end. The
+      losing rows are reported alongside the winning ones.</p>
 
     <h2>The paper</h2>
     <p>
@@ -35,8 +35,8 @@
       Regression, with a Pathwise Regret-Transfer Theorem.</strong> P. Cotton.
     </p>
     <p>
-      The package, the three-prong benchmark study with its losing rows, the
-      ablation, and the theorem with proofs, in one place.
+      The package, the three-part benchmark study, the ablation, and the
+      theorem with proofs.
     </p>
     <p>
       <a href="https://github.com/microprediction/ice-skaters/blob/main/papers/ice-skaters-jss.pdf">PDF →</a>
@@ -51,13 +51,11 @@
     </p>
     <p>
       Replace each input stream with two scalars from its own Laplace
-      forecaster, the predictive mean and the standardized surprise, and give
-      the target its own pair while leaving the target raw. The regression
+      forecaster — the predictive mean and the standardized surprise — and give
+      the target its own pair, leaving the target itself raw. The regression
       then learns from variables that are stationary in scale, bounded in
-      influence and calibrated. This is the regression instance of the
-      Rosenblatt front-end thesis already measured for anomaly detectors and
-      for forecasters: other people's methods get better in Laplace
-      coordinates.
+      influence and calibrated. The same substitution has already been measured
+      for anomaly detectors and for forecasters.
     </p>
     <p>
       <a href="https://github.com/microprediction/ice-skaters/blob/main/papers/regression-frontend.md">Markdown →</a>
@@ -65,13 +63,13 @@
       <a href="https://github.com/microprediction/timemachines/blob/main/benchmarks/RESULTS.md">Full results log (timemachines)</a>
     </p>
 
-    <h2>Headline table one — coordinates, not the loss</h2>
+    <h2>Table one: simulation</h2>
     <p>
       One fixed recursive-least-squares learner, eight contamination
       scenarios, 30 seeds, excess MSE against the clean conditional mean,
       medians. The front-end (zin) beats raw features 30/30 seeds on every
-      contaminated scenario and beats a median/MAD winsorizer and a Huberised
-      loss besides:
+      contaminated scenario, and also beats a median/MAD winsorizer and a
+      Huberised loss:
     </p>
     <table>
       <thead>
@@ -86,16 +84,15 @@
       </tbody>
     </table>
     <p>
-      The heavy-tail row is a boundary, not a bug: when the extremes are
-      signal rather than noise, taming them costs accuracy, and the study
-      reports that plainly.
+      The front-end loses the heavy-tail row. When the extreme values are
+      signal rather than noise, damping them costs accuracy.
     </p>
 
-    <h2>Headline table two — river's own datasets</h2>
+    <h2>Table two: river's own datasets</h2>
     <p>
       Progressive validation MAE, untouched data, tree learner. The body
-      column is the target's Laplace predictive mean alone, no regression, no
-      features, and it is the attribution control:
+      column is the target's Laplace predictive mean alone — no regression, no
+      features — included as a control:
     </p>
     <table>
       <thead>
@@ -109,52 +106,49 @@
       </tbody>
     </table>
     <p>
-      On history-dominated streams the univariate forecaster alone already
-      beats the full feature pipeline, on river's flagship documentation
-      example by 2.2x. Under 2% injected feature spikes the front-end wins
-      10/10 on three of the four datasets. ChickWeights, which interleaves 50
-      growth curves under one key, is the disclosed counterexample.
+      On history-dominated streams the univariate forecaster alone beats the
+      full feature pipeline — on river's main documentation example by 2.2x.
+      Under 2% injected feature spikes the front-end wins 10/10 on three of the
+      four datasets. ChickWeights, which interleaves 50 growth curves under one
+      key, is the counterexample.
     </p>
 
-    <h2>The ablation, and the one-wrapper headline</h2>
+    <h2>The ablation</h2>
     <p>
-      Decomposing the pair: z alone is useless, since surprises carry no
-      level; the mean alone pays a large clean toll and misses distortion;
-      together they recombine into a conditional mean neither supports
-      alone. And the sharpest cell came from the condition the first pass
-      missed: <code>LaplaceTarget</code> alone, raw features untouched,
-      beats river's pipeline on three of four of their datasets untouched
-      (TrumpApproval 0.301 vs 0.334) and 10/10 under feature spikes, while
-      tying the counterexample. The recommendation orders itself: add the
-      target pair always; replace features with their pairs only when you
-      distrust the features; never use z alone. Cost, measured: about 390
-      microseconds per stream per sample, roughly 900x StandardScaler,
-      right at human timescales and wrong in a hot path. The fairness
-      audit added the referee's baseline, raw target lags: strong on
-      smooth single-entity series, fragile everywhere else, and the
-      wrapper on top of lags improved the strongest configuration found
-      on three of four datasets. Raw lags and forecaster features buy the
-      same history; lags are the fragile way. And a free EWMA version of
-      the pair, the cheap-rollup control, captures much of the insurance
-      and even wins the smoothest dataset as features, while losing by
-      14-26% wherever the stream has structure it cannot track: the
-      rollup shape is free insurance, the calibrated forecaster is the
-      accuracy upgrade.
+      Taking the pair apart: z alone is useless, because surprises carry no
+      level. The mean alone costs a lot on clean data and misses distortion.
+      Together they recombine into a conditional mean that neither supports on
+      its own.
+    </p>
+    <p>
+      The strongest result came from a condition the first pass missed.
+      <code>LaplaceTarget</code> alone, with raw features untouched, beats
+      river's pipeline on three of their four datasets clean (TrumpApproval
+      0.301 vs 0.334) and 10/10 under feature spikes, and ties the
+      counterexample. So: add the target pair always; replace features with
+      their pairs only when you distrust the features; never use z alone.
+    </p>
+    <p>
+      Two further comparisons. Raw target lags, the obvious alternative, are
+      strong on smooth single-entity series and fragile elsewhere; the wrapper
+      on top of lags improved the best configuration found on three of four
+      datasets. An EWMA version of the pair, which costs nothing, captures much
+      of the protection and wins the smoothest dataset outright, but loses by
+      14-26% wherever the stream has structure it cannot track.
     </p>
 
     <h2>The theorem</h2>
     <p>
-      <strong>Regret transfer through the front-end.</strong> Pathwise,
-      with measured constants. The sandwich's log-loss regret against
-      every conjugated linear-Gaussian refinement of the body is bounded
-      by an explicit O(d log T) on any data sequence whatsoever, with no
-      stationarity, moment or calibration assumption: the parade clamp
-      manufactures the boundedness the online-learning theorem needs. The
-      insurance corollary, at s = 1 and u = 0, says the sandwich can never
-      lose more than O(d log T) nats to the forecaster alone, which
-      resolves the output-sandwich pathology in the study as a property of
-      point extraction rather than of the density. Proofs and the
-      numerical bound check ship in the repo.
+      <strong>Regret transfer through the front-end.</strong> Pathwise, with
+      measured constants. The sandwich's log-loss regret against every
+      conjugated linear-Gaussian refinement of the body is bounded by an
+      explicit O(d log T) on any data sequence at all — no stationarity, moment
+      or calibration assumption needed, because the clamp supplies the
+      boundedness the online-learning theorem requires. A corollary at s = 1
+      and u = 0: the sandwich can never lose more than O(d log T) nats to the
+      forecaster alone. That places the output-sandwich pathology seen in the
+      study in point extraction rather than in the density. Proofs and a
+      numerical check of the bound are in the repo.
     </p>
     <p>
       <a href="https://github.com/microprediction/ice-skaters/blob/main/papers/regret-transfer.md">Markdown →</a>
@@ -162,38 +156,35 @@
       <a href="https://github.com/microprediction/ice-skaters/blob/main/tests/test_regret_bound.py">The bound check</a>
     </p>
 
-    <h2>The outer boundary, measured</h2>
+    <h2>Where it stops working</h2>
     <p>
-      Are five calibrated numbers typically enough? On 126 non-price FRED
-      cross-series pairs, measured across three learners: no. The signal
-      there is the raw contemporaneous level of a correlated sibling, and
-      the (mean, surprise) pair is a lossy encoding of a level, since
-      rebuilding one needs the product of surprise and scale that a
-      linear learner cannot form. The pair sits ~30% behind raw features
-      clean, the contamination insurance narrows it, and including the
-      raw value alongside the pair recovers most of the gap. Two learner
-      facts travelled with the study: river's default SGD linear model
-      silently diverges on tiny-scale streams, while its own
-      BayesianLinearRegression handles them well and carried the verdict.
+      Are five calibrated numbers usually enough? On 126 non-price FRED
+      cross-series pairs, across three learners: no. There the signal is the
+      raw contemporaneous level of a correlated sibling, and the (mean,
+      surprise) pair loses part of the level — rebuilding it needs the product
+      of surprise and scale, which a linear learner cannot form. The pair sits
+      about 30% behind raw features on clean data; the contamination protection
+      narrows that, and including the raw value alongside the pair recovers
+      most of the gap. Two learner notes from the same study: river's default
+      SGD linear model silently diverges on tiny-scale streams, while its
+      BayesianLinearRegression handles them and was used for the verdict.
     </p>
 
-    <h2>The one-sentence verdict</h2>
+    <h2>Summary</h2>
     <p>
-      The additive framing closed the map: forecasts added on top of raw
-      lags are worth nothing there, and insurance turns out to be a
-      property of substitution, never addition. So: on plain linear
-      universes, send raw lags; the calibrated features earn their place
-      exactly when you distrust the channel (substitute, for insurance),
-      when the stream has structure a lag cannot express (represent), or
-      when you should not be regressing at all (forecast).
+      Forecast features added on top of raw lags are worth nothing; the
+      protection comes from substitution, not addition. On plain linear
+      universes, send raw lags. Use the calibrated features when you distrust
+      the channel, when the stream has structure a lag cannot express, or when
+      you should be forecasting rather than regressing.
     </p>
 
     <h2>Status</h2>
     <p>
-      Preliminary. Remaining open items: per-entity bodies for
-      entity-interleaved streams, multi-horizon surprises from k=3 bodies,
-      and concept-drift classification. Reproduction is five resumable
-      harnesses in the timemachines repo with fixed seeds.
+      Preliminary. Still open: per-entity bodies for entity-interleaved
+      streams, multi-horizon surprises from k=3 bodies, and concept-drift
+      classification. Reproduction is five resumable harnesses in the
+      timemachines repo with fixed seeds.
     </p>
   </main>
 
